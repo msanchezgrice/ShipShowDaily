@@ -128,7 +128,7 @@ export default function CreditPurchaseDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 my-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 my-6 pt-4">
           {creditPackages.map((pkg) => {
             const totalCredits = getTotalCredits(pkg);
             const isSelected = selectedPackage === pkg.id;
@@ -148,8 +148,8 @@ export default function CreditPurchaseDialog({
                 data-testid={`credit-package-${pkg.id}`}
               >
                 {pkg.popular && (
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-accent text-accent-foreground">
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+                    <Badge className="bg-accent text-accent-foreground whitespace-nowrap">
                       <Star className="h-3 w-3 mr-1" />
                       Most Popular
                     </Badge>
