@@ -113,12 +113,31 @@ export const videoTags = pgTable("video_tags", {
   uniqueVideoTag: uniqueIndex("unique_video_tag").on(table.videoId, table.tagId),
 }));
 
+export const videoFavorites = pgTable("video_favorites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  videoId: varchar("video_id").notNull().references(() => videos.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Unique constraint to prevent duplicate user-video favorites
+  uniqueUserVideoFavorite: uniqueIndex("unique_user_video_favorite").on(table.userId, table.videoId),
+}));
+
+export const demoLinkClicks = pgTable("demo_link_clicks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  videoId: varchar("video_id").notNull().references(() => videos.id, { onDelete: "cascade" }),
+  clickedAt: timestamp("clicked_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   videos: many(videos),
   videoViews: many(videoViews),
   creditTransactions: many(creditTransactions),
   videoViewingSessions: many(videoViewingSessions),
+  videoFavorites: many(videoFavorites),
+  demoLinkClicks: many(demoLinkClicks),
 }));
 
 export const videosRelations = relations(videos, ({ one, many }) => ({
@@ -131,6 +150,8 @@ export const videosRelations = relations(videos, ({ one, many }) => ({
   creditTransactions: many(creditTransactions),
   viewingSessions: many(videoViewingSessions),
   videoTags: many(videoTags),
+  videoFavorites: many(videoFavorites),
+  demoLinkClicks: many(demoLinkClicks),
 }));
 
 export const videoViewsRelations = relations(videoViews, ({ one }) => ({
@@ -188,6 +209,28 @@ export const videoTagsRelations = relations(videoTags, ({ one }) => ({
   }),
 }));
 
+export const videoFavoritesRelations = relations(videoFavorites, ({ one }) => ({
+  user: one(users, {
+    fields: [videoFavorites.userId],
+    references: [users.id],
+  }),
+  video: one(videos, {
+    fields: [videoFavorites.videoId],
+    references: [videos.id],
+  }),
+}));
+
+export const demoLinkClicksRelations = relations(demoLinkClicks, ({ one }) => ({
+  user: one(users, {
+    fields: [demoLinkClicks.userId],
+    references: [users.id],
+  }),
+  video: one(videos, {
+    fields: [demoLinkClicks.videoId],
+    references: [videos.id],
+  }),
+}));
+
 // Insert schemas
 export const insertVideoSchema = createInsertSchema(videos).omit({
   id: true,
@@ -223,6 +266,16 @@ export const insertVideoTagSchema = createInsertSchema(videoTags).omit({
   createdAt: true,
 });
 
+export const insertVideoFavoriteSchema = createInsertSchema(videoFavorites).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDemoLinkClickSchema = createInsertSchema(demoLinkClicks).omit({
+  id: true,
+  clickedAt: true,
+});
+
 // Updated video schema to include tags as string array for form submission
 export const insertVideoWithTagsSchema = insertVideoSchema.extend({
   tags: z.array(z.string().trim().min(1).max(50)).max(10).optional(),
@@ -245,3 +298,7 @@ export type Tag = typeof tags.$inferSelect;
 export type InsertTag = z.infer<typeof insertTagSchema>;
 export type VideoTag = typeof videoTags.$inferSelect;
 export type InsertVideoTag = z.infer<typeof insertVideoTagSchema>;
+export type VideoFavorite = typeof videoFavorites.$inferSelect;
+export type InsertVideoFavorite = z.infer<typeof insertVideoFavoriteSchema>;
+export type DemoLinkClick = typeof demoLinkClicks.$inferSelect;
+export type InsertDemoLinkClick = z.infer<typeof insertDemoLinkClickSchema>;

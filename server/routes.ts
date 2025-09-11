@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
-import { insertVideoSchema, insertVideoWithTagsSchema, insertVideoViewSchema, insertCreditTransactionSchema } from "@shared/schema";
+import { insertVideoSchema, insertVideoWithTagsSchema, insertVideoViewSchema, insertCreditTransactionSchema, insertVideoFavoriteSchema, insertDemoLinkClickSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -103,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sessionId: session.id,
         message: "Video viewing session started" 
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error starting video viewing:", error);
       if (error.message === "Video already viewed today") {
         return res.status(400).json({ message: error.message });
@@ -127,15 +127,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         creditAwarded: result.creditAwarded,
-        watchDuration: Math.floor((new Date(result.session.completedAt!).getTime() - new Date(result.session.startedAt).getTime()) / 1000),
+        watchDuration: result.session.completedAt ? Math.floor((new Date(result.session.completedAt).getTime() - new Date(result.session.startedAt).getTime()) / 1000) : 0,
         message: result.creditAwarded ? "Credit earned!" : "Session completed, minimum watch time not met"
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error completing video viewing:", error);
       if (error.message === "Viewing session not found" || error.message === "Session already completed") {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: "Failed to complete video viewing session" });
+    }
+  });
+
+  // Video favorites routes
+  app.post('/api/videos/:id/favorite', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const videoId = req.params.id;
+
+      // Check if video exists
+      const video = await storage.getVideo(videoId);
+      if (!video) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+
+      // Check if already favorited
+      const isAlreadyFavorited = await storage.isVideoFavorited(userId, videoId);
+      if (isAlreadyFavorited) {
+        return res.status(400).json({ message: "Video already favorited" });
+      }
+
+      const favorite = await storage.favoriteVideo({
+        userId,
+        videoId,
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Video added to favorites",
+        favoriteId: favorite.id 
+      });
+    } catch (error) {
+      console.error("Error favoriting video:", error);
+      res.status(500).json({ message: "Failed to favorite video" });
+    }
+  });
+
+  app.post('/api/videos/:id/demo-click', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const videoId = req.params.id;
+
+      // Check if video exists
+      const video = await storage.getVideo(videoId);
+      if (!video) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+
+      const click = await storage.recordDemoLinkClick({
+        userId,
+        videoId,
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Demo link click recorded",
+        clickId: click.id 
+      });
+    } catch (error) {
+      console.error("Error recording demo link click:", error);
+      res.status(500).json({ message: "Failed to record demo link click" });
     }
   });
 

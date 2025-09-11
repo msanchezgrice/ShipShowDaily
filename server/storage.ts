@@ -7,6 +7,8 @@ import {
   videoViewingSessions,
   tags,
   videoTags,
+  videoFavorites,
+  demoLinkClicks,
   type User,
   type UpsertUser,
   type Video,
@@ -23,6 +25,10 @@ import {
   type InsertTag,
   type VideoTag,
   type InsertVideoTag,
+  type VideoFavorite,
+  type InsertVideoFavorite,
+  type DemoLinkClick,
+  type InsertDemoLinkClick,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, gte, lt } from "drizzle-orm";
@@ -83,6 +89,15 @@ export interface IStorage {
   getOrCreateTag(name: string): Promise<Tag>;
   getVideoTags(videoId: string): Promise<Tag[]>;
   addTagsToVideo(videoId: string, tagIds: string[]): Promise<void>;
+
+  // Favorites operations
+  favoriteVideo(favorite: InsertVideoFavorite): Promise<VideoFavorite>;
+  isVideoFavorited(userId: string, videoId: string): Promise<boolean>;
+  getUserFavoriteVideos(userId: string): Promise<(Video & { creator: User })[]>;
+
+  // Demo link clicks operations
+  recordDemoLinkClick(click: InsertDemoLinkClick): Promise<DemoLinkClick>;
+  getDemoLinkClickCount(videoId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -678,6 +693,75 @@ export class DatabaseStorage implements IStorage {
     }));
     
     await db.insert(videoTags).values(tagValues);
+  }
+
+  // Favorites operations
+  async favoriteVideo(favorite: InsertVideoFavorite): Promise<VideoFavorite> {
+    const [result] = await db
+      .insert(videoFavorites)
+      .values(favorite)
+      .onConflictDoNothing() // Prevent duplicate favorites
+      .returning();
+    
+    return result;
+  }
+
+  async isVideoFavorited(userId: string, videoId: string): Promise<boolean> {
+    const [result] = await db
+      .select()
+      .from(videoFavorites)
+      .where(and(eq(videoFavorites.userId, userId), eq(videoFavorites.videoId, videoId)))
+      .limit(1);
+    
+    return !!result;
+  }
+
+  async getUserFavoriteVideos(userId: string): Promise<(Video & { creator: User })[]> {
+    const result = await db
+      .select({
+        video: videos,
+        creator: users,
+      })
+      .from(videoFavorites)
+      .innerJoin(videos, eq(videoFavorites.videoId, videos.id))
+      .innerJoin(users, eq(videos.creatorId, users.id))
+      .where(and(eq(videoFavorites.userId, userId), eq(videos.isActive, true)))
+      .orderBy(desc(videoFavorites.createdAt));
+
+    return result.map(row => ({
+      ...row.video,
+      creator: row.creator,
+    }));
+  }
+
+  // Demo link clicks operations
+  async recordDemoLinkClick(click: InsertDemoLinkClick): Promise<DemoLinkClick> {
+    const [result] = await db
+      .insert(demoLinkClicks)
+      .values(click)
+      .returning();
+    
+    return result;
+  }
+
+  async getDemoLinkClickCount(videoId: string): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const [result] = await db
+      .select({ count: sql<number>`count(*)`.mapWith(Number) })
+      .from(demoLinkClicks)
+      .where(
+        and(
+          eq(demoLinkClicks.videoId, videoId),
+          gte(demoLinkClicks.clickedAt, today),
+          lt(demoLinkClicks.clickedAt, tomorrow)
+        )
+      );
+
+    return result?.count || 0;
   }
 }
 
