@@ -20,7 +20,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
-          <Route path="/submit" component={SubmitDemo} />
+          <Route path="/submit-demo" component={SubmitDemo} />
           <Route path="/dashboard" component={Dashboard} />
         </>
       )}

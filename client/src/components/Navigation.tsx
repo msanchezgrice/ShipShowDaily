@@ -24,7 +24,7 @@ export default function Navigation() {
   const navItems = [
     { href: "/", label: "Leaderboard", icon: Trophy, active: location === "/" },
     { href: "/dashboard", label: "Dashboard", icon: BarChart3, active: location === "/dashboard" },
-    { href: "/submit", label: "Submit Demo", icon: Upload, active: location === "/submit" },
+    { href: "/submit-demo", label: "Submit Demo", icon: Upload, active: location === "/submit-demo" },
   ];
 
   return (
