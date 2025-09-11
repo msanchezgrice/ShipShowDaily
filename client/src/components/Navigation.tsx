@@ -9,7 +9,8 @@ import {
   Upload, 
   Coins,
   User,
-  LogOut
+  LogOut,
+  Settings
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -25,6 +26,7 @@ export default function Navigation() {
     { href: "/", label: "Leaderboard", icon: Trophy, active: location === "/" },
     { href: "/dashboard", label: "Dashboard", icon: BarChart3, active: location === "/dashboard" },
     { href: "/submit-demo", label: "Submit Demo", icon: Upload, active: location === "/submit-demo" },
+    { href: "/settings", label: "Settings", icon: Settings, active: location === "/settings" },
   ];
 
   return (

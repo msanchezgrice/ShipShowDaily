@@ -8,6 +8,7 @@ import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import SubmitDemo from "@/pages/submit-demo";
 import Dashboard from "@/pages/dashboard";
+import Settings from "@/pages/settings";
 import { useAuth } from "@/hooks/useAuth";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/submit-demo" component={SubmitDemo} />
           <Route path="/dashboard" component={Dashboard} />
+          <Route path="/settings" component={Settings} />
         </>
       )}
       <Route component={NotFound} />

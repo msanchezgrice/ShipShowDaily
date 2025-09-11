@@ -246,6 +246,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile management routes
+  app.patch('/api/profile/update', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { firstName, lastName, email } = req.body;
+
+      // Basic validation
+      if (!firstName || !lastName || !email) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      if (!/\S+@\S+\.\S+/.test(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+
+      await storage.updateUserProfile(userId, { firstName, lastName, email });
+      res.json({ success: true, message: "Profile updated successfully" });
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: error.message || "Failed to update profile" });
+    }
+  });
+
+  app.patch('/api/profile/password', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "New password must be at least 8 characters long" });
+      }
+
+      await storage.updateUserPassword(userId, currentPassword, newPassword);
+      res.json({ success: true, message: "Password updated successfully" });
+    } catch (error: any) {
+      console.error("Error updating password:", error);
+      res.status(500).json({ message: error.message || "Failed to update password" });
+    }
+  });
+
+  app.post('/api/auth/logout', async (req, res) => {
+    try {
+      req.session.destroy((err: any) => {
+        if (err) {
+          console.error("Error destroying session:", err);
+          return res.status(500).json({ message: "Failed to sign out" });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ success: true, message: "Signed out successfully" });
+      });
+    } catch (error) {
+      console.error("Error signing out:", error);
+      res.status(500).json({ message: "Failed to sign out" });
+    }
+  });
+
   // Stats routes
   app.get('/api/stats/today', async (req, res) => {
     try {

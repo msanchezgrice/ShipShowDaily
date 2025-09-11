@@ -39,6 +39,8 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserCredits(userId: string, amount: number): Promise<void>;
+  updateUserProfile(userId: string, profile: { firstName: string; lastName: string; email: string }): Promise<void>;
+  updateUserPassword(userId: string, currentPassword: string, newPassword: string): Promise<void>;
   
   // Video operations
   createVideo(video: InsertVideo): Promise<Video>;
@@ -139,6 +141,43 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));
+  }
+
+  async updateUserProfile(userId: string, profile: { firstName: string; lastName: string; email: string }): Promise<void> {
+    const existingUser = await this.getUser(userId);
+    if (!existingUser) {
+      throw new Error("User not found");
+    }
+
+    // Check if email is already taken by another user
+    const existingEmailUser = await db
+      .select()
+      .from(users)
+      .where(and(
+        eq(users.email, profile.email),
+        sql`${users.id} != ${userId}`
+      ));
+
+    if (existingEmailUser.length > 0) {
+      throw new Error("Email is already taken");
+    }
+
+    await db
+      .update(users)
+      .set({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        email: profile.email,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async updateUserPassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    // Note: Since we're using Replit OIDC auth, password management might not be applicable
+    // This is a placeholder implementation - in reality, password changes would be handled
+    // by the OIDC provider (Replit) rather than our application
+    throw new Error("Password management is handled by your Replit account. Please update your password in your Replit account settings.");
   }
 
   // Video operations
