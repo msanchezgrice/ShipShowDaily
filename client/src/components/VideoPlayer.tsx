@@ -7,7 +7,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { X, Play, Pause, ExternalLink, Eye, Award } from "lucide-react";
+import { X, Play, Pause, ExternalLink, Eye, Award, Heart } from "lucide-react";
 
 interface VideoPlayerProps {
   video: {
@@ -35,10 +35,20 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
   const [hasEarnedCredit, setHasEarnedCredit] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (videoRef.current && (videoRef.current as any).simulationInterval) {
+        clearInterval((videoRef.current as any).simulationInterval);
+      }
+    };
+  }, []);
 
   const startViewingMutation = useMutation({
     mutationFn: async () => {
@@ -113,11 +123,50 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
     },
   });
 
+  const favoriteVideoMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/videos/${video.id}/favorite`);
+    },
+    onSuccess: () => {
+      setIsFavorited(true);
+      toast({
+        title: "Added to Favorites",
+        description: "Video added to your favorites.",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to favorite video.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const togglePlay = () => {
     if (videoRef.current) {
       if (isPlaying) {
-        videoRef.current.pause();
+        // Clear any simulation interval first
+        if ((videoRef.current as any).simulationInterval) {
+          clearInterval((videoRef.current as any).simulationInterval);
+        }
         setIsPlaying(false);
+        
+        // Only pause actual video if it has a real source
+        if (video.videoPath && !video.videoPath.includes('example.com')) {
+          videoRef.current.pause();
+        }
       } else {
         // Start viewing session when user starts playing
         if (!sessionStarted && !startViewingMutation.isPending) {
@@ -128,50 +177,51 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
         if (!video.videoPath || video.videoPath.includes('example.com')) {
           setIsPlaying(true);
         } else {
-          videoRef.current.play();
-          setIsPlaying(true);
+          videoRef.current.play().catch(e => {
+            console.warn("Video play failed:", e);
+            // Fallback to simulation mode
+            setIsPlaying(true);
+          });
         }
       }
     }
   };
 
   const simulateVideoPlayback = () => {
-    if (videoRef.current) {
+    if (videoRef.current && (!video.videoPath || video.videoPath.includes('example.com'))) {
+      // Clear any existing interval first
+      if ((videoRef.current as any).simulationInterval) {
+        clearInterval((videoRef.current as any).simulationInterval);
+      }
+      
       // Set a fake duration for simulation
       Object.defineProperty(videoRef.current, 'duration', {
         writable: true,
         value: 60 // 60 second duration
       });
       
-      let simTime = 0;
-      console.log("Starting video simulation");
+      let simTime = currentTime;
       
       // Simulate time updates
       const interval = setInterval(() => {
-        console.log(`Simulation tick: ${simTime}s, isPlaying: ${isPlaying}, sessionId: ${sessionId}, hasEarnedCredit: ${hasEarnedCredit}`);
-        
         if (isPlaying) {
           simTime += 1;
           setCurrentTime(simTime);
           
           // Trigger completion at 30 seconds
           if (simTime >= 30 && !hasEarnedCredit && sessionId && !completeViewingMutation.isPending) {
-            console.log("Triggering completion at 30 seconds with sessionId:", sessionId);
             completeViewingMutation.mutate(sessionId);
           }
           
           if (simTime >= 60) {
-            console.log("Video simulation ended at 60 seconds");
             clearInterval(interval);
             setIsPlaying(false);
             // Complete session on video end if not already completed
             if (!hasEarnedCredit && sessionId && !completeViewingMutation.isPending) {
-              console.log("Completing session on video end");
               completeViewingMutation.mutate(sessionId);
             }
           }
         } else {
-          console.log("Video paused, clearing interval");
           clearInterval(interval);
         }
       }, 1000);
@@ -297,11 +347,22 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
               <h2 className="text-xl font-bold text-foreground mb-2">{video.title}</h2>
               <p className="text-muted-foreground">{video.description}</p>
             </div>
-            <div className="text-right ml-4">
-              <Badge variant="secondary" className="mb-2">
+            <div className="text-right ml-4 flex flex-col items-end space-y-2">
+              <Badge variant="secondary">
                 <Eye className="mr-1 h-3 w-3" />
                 {video.todayViews} views today
               </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => favoriteVideoMutation.mutate()}
+                disabled={isFavorited || favoriteVideoMutation.isPending}
+                className={`${isFavorited ? 'text-red-500' : 'text-gray-500 hover:text-red-500'} transition-colors`}
+                data-testid="button-favorite-video"
+              >
+                <Heart className={`h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
+                {isFavorited ? 'Favorited' : 'Favorite'}
+              </Button>
             </div>
           </div>
           
@@ -321,7 +382,11 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
             
             <Button
               className="bg-primary text-primary-foreground"
-              onClick={() => window.open(video.productUrl, "_blank")}
+              onClick={() => {
+                // Track demo link click
+                apiRequest("POST", `/api/videos/${video.id}/demo-click`).catch(console.warn);
+                window.open(video.productUrl, "_blank");
+              }}
               data-testid="button-try-product"
             >
               <ExternalLink className="mr-2 h-4 w-4" />
