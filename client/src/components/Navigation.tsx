@@ -2,15 +2,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Rocket, 
   Trophy, 
   BarChart3, 
   Upload, 
   Coins,
-  User,
-  LogOut,
-  Settings
+  User
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -18,9 +17,6 @@ export default function Navigation() {
   const { user } = useAuth();
   const [location] = useLocation();
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
-  };
 
   const navItems = [
     { href: "/", label: "Leaderboard", icon: Trophy, active: location === "/" },
@@ -50,30 +46,44 @@ export default function Navigation() {
                   {item.label}
                 </Button>
               ))}
-              {/* Settings Icon */}
-              <Button
-                variant={location === "/settings" ? "default" : "ghost"}
-                className={location === "/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}
-                onClick={() => window.location.href = "/settings"}
-                data-testid="nav-settings"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
             </div>
           </div>
           
           <div className="flex items-center space-x-4">
-            {/* User Credits Display */}
-            <div className="hidden sm:flex items-center bg-card rounded-lg px-3 py-2 border border-border">
-              <Coins className="text-accent mr-2 h-4 w-4" />
-              <span className="text-accent font-semibold" data-testid="text-user-credits">
-                {user?.credits || 0}
-              </span>
-              <span className="text-muted-foreground ml-1">credits</span>
-            </div>
+            {/* User Credits Display with Tooltip */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className="hidden sm:flex items-center bg-card rounded-lg px-3 py-2 border border-border cursor-pointer hover:bg-card/80 transition-colors"
+                    onClick={() => window.location.href = '/dashboard'}
+                    data-testid="credits-display"
+                  >
+                    <Coins className="text-accent mr-2 h-4 w-4" />
+                    <span className="text-accent font-semibold" data-testid="text-user-credits">
+                      {user?.credits || 0}
+                    </span>
+                    <span className="text-muted-foreground ml-1">credits</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="font-medium mb-2">Ways to get credits:</p>
+                  <ul className="text-sm space-y-1">
+                    <li>• Watch demos for 30+ seconds</li>
+                    <li>• Purchase credit packages</li>
+                    <li>• Submit popular videos</li>
+                  </ul>
+                  <p className="text-xs text-muted-foreground mt-2">Click to manage credits</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
-            {/* User Profile */}
-            <div className="flex items-center space-x-3">
+            {/* User Profile - Clickable to Settings */}
+            <div 
+              className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => window.location.href = '/settings'}
+              data-testid="user-profile"
+            >
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.profileImageUrl} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
@@ -85,15 +95,6 @@ export default function Navigation() {
                   {user?.firstName || user?.email || "User"}
                 </span>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleLogout}
-                className="text-muted-foreground hover:text-foreground"
-                data-testid="button-logout"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </div>

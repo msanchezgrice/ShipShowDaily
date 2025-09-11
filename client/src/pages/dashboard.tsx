@@ -6,6 +6,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
 import Navigation from "@/components/Navigation";
 import CreditPurchaseDialog from "@/components/CreditPurchaseDialog";
+import InsufficientCreditsDialog from "@/components/InsufficientCreditsDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const [selectedVideoId, setSelectedVideoId] = useState("");
   const [boostAmount, setBoostAmount] = useState("");
   const [showCreditPurchaseDialog, setShowCreditPurchaseDialog] = useState(false);
+  const [showInsufficientCreditsDialog, setShowInsufficientCreditsDialog] = useState(false);
   const [requiredCreditsForBoost, setRequiredCreditsForBoost] = useState(0);
 
   // Redirect if not authenticated
@@ -105,10 +107,9 @@ export default function Dashboard() {
 
     if (!user || user.credits < amount) {
       setRequiredCreditsForBoost(amount);
-      setShowCreditPurchaseDialog(true);
+      setShowInsufficientCreditsDialog(true);
       return;
     }
-
     boostMutation.mutate({ videoId: selectedVideoId, amount });
   };
 
@@ -216,7 +217,7 @@ export default function Dashboard() {
                   <div className="text-center py-8">
                     <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground mb-4">No videos uploaded yet</p>
-                    <Button onClick={() => window.location.href = '/submit'} data-testid="button-upload-first">
+                    <Button onClick={() => window.location.href = '/submit-demo'} data-testid="button-upload-first">
                       <Upload className="mr-2 h-4 w-4" />
                       Upload Your First Demo
                     </Button>
@@ -373,6 +374,14 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Insufficient Credits Dialog */}
+      <InsufficientCreditsDialog
+        isOpen={showInsufficientCreditsDialog}
+        onClose={() => setShowInsufficientCreditsDialog(false)}
+        requiredCredits={requiredCreditsForBoost}
+        currentCredits={user?.credits || 0}
+      />
+      
       {/* Credit Purchase Dialog */}
       <CreditPurchaseDialog
         isOpen={showCreditPurchaseDialog}
