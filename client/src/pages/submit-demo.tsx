@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Navigation from "@/components/Navigation";
 import { ObjectUploader } from "@/components/ObjectUploader";
+import { TagInput } from "@/components/TagInput";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -20,6 +21,7 @@ const submitDemoSchema = z.object({
   title: z.string().min(1, "Title is required").max(255, "Title too long"),
   description: z.string().min(1, "Description is required").max(1000, "Description too long"),
   productUrl: z.string().url("Must be a valid URL"),
+  tags: z.array(z.string().trim().min(1).max(50)).max(10).optional(),
 });
 
 type SubmitDemoForm = z.infer<typeof submitDemoSchema>;
@@ -27,6 +29,7 @@ type SubmitDemoForm = z.infer<typeof submitDemoSchema>;
 export default function SubmitDemo() {
   const [videoPath, setVideoPath] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -36,6 +39,7 @@ export default function SubmitDemo() {
       title: "",
       description: "",
       productUrl: "",
+      tags: [],
     },
   });
 
@@ -50,6 +54,7 @@ export default function SubmitDemo() {
       });
       form.reset();
       setVideoPath("");
+      setTags([]);
       queryClient.invalidateQueries({ queryKey: ["/api/videos/top"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/videos"] });
     },
@@ -148,6 +153,7 @@ export default function SubmitDemo() {
     submitMutation.mutate({
       ...data,
       videoPath,
+      tags,
     });
   };
 
@@ -263,6 +269,24 @@ export default function SubmitDemo() {
                 />
                 {form.formState.errors.productUrl && (
                   <p className="text-sm text-destructive">{form.formState.errors.productUrl.message}</p>
+                )}
+              </div>
+
+              {/* Tags */}
+              <div className="space-y-2">
+                <TagInput
+                  tags={tags}
+                  onChange={setTags}
+                  maxTags={10}
+                  label="Tags (Optional)"
+                  placeholder="Add tags to help users discover your demo (e.g., saas, productivity, ai)"
+                  id="tags"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Tags help users discover your demo. Use relevant keywords like your industry, product type, or key features.
+                </p>
+                {form.formState.errors.tags && (
+                  <p className="text-sm text-destructive">{form.formState.errors.tags.message}</p>
                 )}
               </div>
 

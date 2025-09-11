@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Play, Eye, ExternalLink, Crown } from "lucide-react";
+import { Play, Eye, ExternalLink, Crown, Hash } from "lucide-react";
 
 interface VideoCardProps {
   video: {
@@ -21,12 +21,17 @@ interface VideoCardProps {
       profileImageUrl?: string;
     };
     todayViews: number;
+    tags?: Array<{
+      id: string;
+      name: string;
+    }>;
   };
   position: number;
   onPlay: () => void;
+  onTagClick?: (tagName: string) => void;
 }
 
-export default function VideoCard({ video, position, onPlay }: VideoCardProps) {
+export default function VideoCard({ video, position, onPlay, onTagClick }: VideoCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   const getPositionBadge = () => {
@@ -115,6 +120,36 @@ export default function VideoCard({ video, position, onPlay }: VideoCardProps) {
       <CardContent className="p-4">
         <h3 className="font-semibold text-foreground mb-2 line-clamp-2">{video.title}</h3>
         <p className="text-muted-foreground text-sm mb-3 line-clamp-2">{video.description}</p>
+        
+        {/* Tags */}
+        {video.tags && video.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {video.tags.slice(0, 3).map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="secondary"
+                className="px-2 py-1 text-xs bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTagClick?.(tag.name);
+                }}
+                data-testid={`tag-badge-${tag.name}`}
+              >
+                <Hash className="w-2.5 h-2.5 mr-1" />
+                {tag.name}
+              </Badge>
+            ))}
+            {video.tags.length > 3 && (
+              <Badge 
+                variant="secondary" 
+                className="px-2 py-1 text-xs bg-muted/50 text-muted-foreground"
+                data-testid="more-tags-indicator"
+              >
+                +{video.tags.length - 3} more
+              </Badge>
+            )}
+          </div>
+        )}
         
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">

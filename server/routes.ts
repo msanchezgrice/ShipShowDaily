@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
-import { insertVideoSchema, insertVideoViewSchema, insertCreditTransactionSchema } from "@shared/schema";
+import { insertVideoSchema, insertVideoWithTagsSchema, insertVideoViewSchema, insertCreditTransactionSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -27,7 +27,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/videos/top', async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
-      const videos = await storage.getTopVideosToday(limit);
+      const tagFilter = req.query.tag as string;
+      const videos = await storage.getTopVideosTodayWithTags(limit, tagFilter);
       res.json(videos);
     } catch (error) {
       console.error("Error fetching top videos:", error);
@@ -37,7 +38,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/videos/:id', async (req, res) => {
     try {
-      const video = await storage.getVideoWithCreator(req.params.id);
+      const video = await storage.getVideoWithCreatorAndTags(req.params.id);
       if (!video) {
         return res.status(404).json({ message: "Video not found" });
       }
@@ -51,12 +52,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/videos', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const videoData = insertVideoSchema.parse({
+      const videoData = insertVideoWithTagsSchema.parse({
         ...req.body,
         creatorId: userId,
       });
       
-      const video = await storage.createVideo(videoData);
+      const video = await storage.createVideoWithTags(videoData);
       res.status(201).json(video);
     } catch (error) {
       console.error("Error creating video:", error);
@@ -70,11 +71,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/user/videos', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const videos = await storage.getUserVideos(userId);
+      const videos = await storage.getUserVideosWithTags(userId);
       res.json(videos);
     } catch (error) {
       console.error("Error fetching user videos:", error);
       res.status(500).json({ message: "Failed to fetch user videos" });
+    }
+  });
+
+  // Tag routes
+  app.get('/api/tags', async (req, res) => {
+    try {
+      const tags = await storage.getAllTags();
+      res.json(tags);
+    } catch (error) {
+      console.error("Error fetching tags:", error);
+      res.status(500).json({ message: "Failed to fetch tags" });
     }
   });
 

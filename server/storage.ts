@@ -5,10 +5,13 @@ import {
   dailyStats,
   creditTransactions,
   videoViewingSessions,
+  tags,
+  videoTags,
   type User,
   type UpsertUser,
   type Video,
   type InsertVideo,
+  type InsertVideoWithTags,
   type VideoView,
   type InsertVideoView,
   type DailyStat,
@@ -16,6 +19,10 @@ import {
   type InsertCreditTransaction,
   type VideoViewingSession,
   type InsertVideoViewingSession,
+  type Tag,
+  type InsertTag,
+  type VideoTag,
+  type InsertVideoTag,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, gte, lt } from "drizzle-orm";
@@ -29,10 +36,14 @@ export interface IStorage {
   
   // Video operations
   createVideo(video: InsertVideo): Promise<Video>;
+  createVideoWithTags(video: InsertVideoWithTags): Promise<Video>;
   getVideo(id: string): Promise<Video | undefined>;
   getVideoWithCreator(id: string): Promise<(Video & { creator: User }) | undefined>;
+  getVideoWithCreatorAndTags(id: string): Promise<(Video & { creator: User; tags: Tag[] }) | undefined>;
   getUserVideos(userId: string): Promise<(Video & { todayViews: number })[]>;
-  getTopVideosToday(limit?: number): Promise<(Video & { creator: User; todayViews: number })[]>;
+  getUserVideosWithTags(userId: string): Promise<(Video & { todayViews: number; tags: Tag[] })[]>;
+  getTopVideosToday(limit?: number, tagFilter?: string): Promise<(Video & { creator: User; todayViews: number })[]>;
+  getTopVideosTodayWithTags(limit?: number, tagFilter?: string): Promise<(Video & { creator: User; todayViews: number; tags: Tag[] })[]>;
   incrementVideoViews(videoId: string): Promise<void>;
   
   // Video viewing operations
@@ -66,6 +77,12 @@ export interface IStorage {
   completeVideoViewing(sessionId: string): Promise<{ session: VideoViewingSession; creditAwarded: boolean }>;
   getActiveVideoViewingSession(userId: string, videoId: string): Promise<VideoViewingSession | undefined>;
   hasUserViewedVideoToday(userId: string, videoId: string): Promise<boolean>;
+  
+  // Tag operations
+  getAllTags(): Promise<Tag[]>;
+  getOrCreateTag(name: string): Promise<Tag>;
+  getVideoTags(videoId: string): Promise<Tag[]>;
+  addTagsToVideo(videoId: string, tagIds: string[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -485,6 +502,182 @@ export class DatabaseStorage implements IStorage {
       );
     
     return !!view;
+  }
+
+  // Video operations with tags
+  async createVideoWithTags(video: InsertVideoWithTags): Promise<Video> {
+    const { tags: tagNames, ...videoData } = video;
+    
+    // Create the video first
+    const [newVideo] = await db.insert(videos).values(videoData).returning();
+    
+    // If tags are provided, handle them
+    if (tagNames && tagNames.length > 0) {
+      const tagIds: string[] = [];
+      
+      // Get or create each tag
+      for (const tagName of tagNames) {
+        const tag = await this.getOrCreateTag(tagName);
+        tagIds.push(tag.id);
+      }
+      
+      // Associate tags with the video
+      if (tagIds.length > 0) {
+        await this.addTagsToVideo(newVideo.id, tagIds);
+      }
+    }
+    
+    return newVideo;
+  }
+
+  async getVideoWithCreatorAndTags(id: string): Promise<(Video & { creator: User; tags: Tag[] }) | undefined> {
+    // Get video with creator
+    const result = await db
+      .select()
+      .from(videos)
+      .innerJoin(users, eq(videos.creatorId, users.id))
+      .where(eq(videos.id, id));
+    
+    if (result.length === 0) return undefined;
+    
+    // Get tags for this video
+    const videoTags = await this.getVideoTags(id);
+    
+    return {
+      ...result[0].videos,
+      creator: result[0].users,
+      tags: videoTags,
+    };
+  }
+
+  async getUserVideosWithTags(userId: string): Promise<(Video & { todayViews: number; tags: Tag[] })[]> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const result = await db
+      .select({
+        video: videos,
+        todayViews: sql<number>`COALESCE(${dailyStats.views}, 0)`,
+      })
+      .from(videos)
+      .leftJoin(
+        dailyStats,
+        and(
+          eq(videos.id, dailyStats.videoId),
+          eq(dailyStats.date, today)
+        )
+      )
+      .where(eq(videos.creatorId, userId))
+      .orderBy(desc(videos.createdAt));
+
+    // Get tags for each video
+    const videosWithTags = await Promise.all(
+      result.map(async row => {
+        const videoTags = await this.getVideoTags(row.video.id);
+        return {
+          ...row.video,
+          todayViews: row.todayViews,
+          tags: videoTags,
+        };
+      })
+    );
+
+    return videosWithTags;
+  }
+
+  async getTopVideosTodayWithTags(limit = 10, tagFilter?: string): Promise<(Video & { creator: User; todayViews: number; tags: Tag[] })[]> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    let query = db
+      .select({
+        video: videos,
+        creator: users,
+        todayViews: sql<number>`COALESCE(${dailyStats.views}, 0)`,
+      })
+      .from(videos)
+      .innerJoin(users, eq(videos.creatorId, users.id))
+      .leftJoin(
+        dailyStats,
+        and(
+          eq(videos.id, dailyStats.videoId),
+          eq(dailyStats.date, today)
+        )
+      )
+      .where(eq(videos.isActive, true));
+
+    // Add tag filtering if specified
+    if (tagFilter) {
+      query = query
+        .innerJoin(videoTags, eq(videos.id, videoTags.videoId))
+        .innerJoin(tags, and(eq(videoTags.tagId, tags.id), eq(tags.name, tagFilter)));
+    }
+
+    const result = await query
+      .orderBy(desc(sql`COALESCE(${dailyStats.views}, 0)`))
+      .limit(limit);
+
+    // Get tags for each video
+    const videosWithTags = await Promise.all(
+      result.map(async row => {
+        const videoTags = await this.getVideoTags(row.video.id);
+        return {
+          ...row.video,
+          creator: row.creator,
+          todayViews: row.todayViews,
+          tags: videoTags,
+        };
+      })
+    );
+
+    return videosWithTags;
+  }
+
+  // Tag operations
+  async getAllTags(): Promise<Tag[]> {
+    return await db.select().from(tags).orderBy(tags.name);
+  }
+
+  async getOrCreateTag(name: string): Promise<Tag> {
+    const normalizedName = name.trim().toLowerCase();
+    
+    // Try to get existing tag
+    const [existingTag] = await db
+      .select()
+      .from(tags)
+      .where(eq(tags.name, normalizedName));
+    
+    if (existingTag) {
+      return existingTag;
+    }
+    
+    // Create new tag
+    const [newTag] = await db
+      .insert(tags)
+      .values({ name: normalizedName })
+      .returning();
+    
+    return newTag;
+  }
+
+  async getVideoTags(videoId: string): Promise<Tag[]> {
+    const result = await db
+      .select({ tag: tags })
+      .from(videoTags)
+      .innerJoin(tags, eq(videoTags.tagId, tags.id))
+      .where(eq(videoTags.videoId, videoId))
+      .orderBy(tags.name);
+    
+    return result.map(row => row.tag);
+  }
+
+  async addTagsToVideo(videoId: string, tagIds: string[]): Promise<void> {
+    if (tagIds.length === 0) return;
+    
+    const tagValues = tagIds.map(tagId => ({
+      videoId,
+      tagId,
+    }));
+    
+    await db.insert(videoTags).values(tagValues);
   }
 }
 

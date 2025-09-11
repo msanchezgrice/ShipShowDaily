@@ -97,6 +97,22 @@ export const videoViewingSessions = pgTable("video_viewing_sessions", {
   uniqueActiveSession: uniqueIndex("unique_active_session").on(table.userId, table.videoId, table.isCompleted),
 }));
 
+export const tags = pgTable("tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 50 }).notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const videoTags = pgTable("video_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  videoId: varchar("video_id").notNull().references(() => videos.id, { onDelete: "cascade" }),
+  tagId: varchar("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Unique constraint to prevent duplicate video-tag pairs
+  uniqueVideoTag: uniqueIndex("unique_video_tag").on(table.videoId, table.tagId),
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   videos: many(videos),
@@ -114,6 +130,7 @@ export const videosRelations = relations(videos, ({ one, many }) => ({
   dailyStats: many(dailyStats),
   creditTransactions: many(creditTransactions),
   viewingSessions: many(videoViewingSessions),
+  videoTags: many(videoTags),
 }));
 
 export const videoViewsRelations = relations(videoViews, ({ one }) => ({
@@ -156,6 +173,21 @@ export const videoViewingSessionsRelations = relations(videoViewingSessions, ({ 
   }),
 }));
 
+export const tagsRelations = relations(tags, ({ many }) => ({
+  videoTags: many(videoTags),
+}));
+
+export const videoTagsRelations = relations(videoTags, ({ one }) => ({
+  video: one(videos, {
+    fields: [videoTags.videoId],
+    references: [videos.id],
+  }),
+  tag: one(tags, {
+    fields: [videoTags.tagId],
+    references: [tags.id],
+  }),
+}));
+
 // Insert schemas
 export const insertVideoSchema = createInsertSchema(videos).omit({
   id: true,
@@ -181,10 +213,26 @@ export const insertVideoViewingSessionSchema = createInsertSchema(videoViewingSe
   completedAt: true,
 });
 
+export const insertTagSchema = createInsertSchema(tags).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertVideoTagSchema = createInsertSchema(videoTags).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Updated video schema to include tags as string array for form submission
+export const insertVideoWithTagsSchema = insertVideoSchema.extend({
+  tags: z.array(z.string().trim().min(1).max(50)).max(10).optional(),
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertVideo = z.infer<typeof insertVideoSchema>;
+export type InsertVideoWithTags = z.infer<typeof insertVideoWithTagsSchema>;
 export type Video = typeof videos.$inferSelect;
 export type InsertVideoView = z.infer<typeof insertVideoViewSchema>;
 export type VideoView = typeof videoViews.$inferSelect;
@@ -193,3 +241,7 @@ export type CreditTransaction = typeof creditTransactions.$inferSelect;
 export type DailyStat = typeof dailyStats.$inferSelect;
 export type InsertVideoViewingSession = z.infer<typeof insertVideoViewingSessionSchema>;
 export type VideoViewingSession = typeof videoViewingSessions.$inferSelect;
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = z.infer<typeof insertTagSchema>;
+export type VideoTag = typeof videoTags.$inferSelect;
+export type InsertVideoTag = z.infer<typeof insertVideoTagSchema>;

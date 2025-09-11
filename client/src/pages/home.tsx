@@ -6,14 +6,28 @@ import Leaderboard from "@/components/Leaderboard";
 import VideoPlayer from "@/components/VideoPlayer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Eye, Video, Coins, Users, Clock, TrendingUp, BarChart3 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Eye, Video, Coins, Users, Clock, TrendingUp, BarChart3, Hash, X } from "lucide-react";
 
 export default function Home() {
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [resetTimer, setResetTimer] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const { data: topVideos = [] } = useQuery<any[]>({
-    queryKey: ["/api/videos/top"],
+    queryKey: ["/api/videos/top", selectedTag],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (selectedTag) {
+        params.append('tag', selectedTag);
+      }
+      const url = `/api/videos/top${params.toString() ? '?' + params.toString() : ''}`;
+      return fetch(url).then(res => res.json());
+    },
+  });
+
+  const { data: allTags = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ["/api/tags"],
   });
 
   const { data: stats } = useQuery<{
@@ -140,6 +154,56 @@ export default function Home() {
               </div>
             </div>
             
+            {/* Tag Filtering */}
+            <div className="mb-6">
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-sm text-muted-foreground font-medium flex items-center">
+                  <Hash className="h-3 w-3 mr-1" />
+                  Filter by tags:
+                </span>
+                
+                {selectedTag && (
+                  <Badge 
+                    className="bg-primary text-primary-foreground cursor-pointer hover:bg-primary/90 transition-colors"
+                    onClick={() => setSelectedTag(null)}
+                    data-testid="active-tag-filter"
+                  >
+                    {selectedTag}
+                    <X className="h-3 w-3 ml-1" />
+                  </Badge>
+                )}
+                
+                <div className="flex flex-wrap gap-2">
+                  {allTags.slice(0, 8).map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant={selectedTag === tag.name ? "default" : "secondary"}
+                      className={`cursor-pointer transition-colors ${
+                        selectedTag === tag.name 
+                          ? "bg-primary text-primary-foreground" 
+                          : "hover:bg-primary/20"
+                      }`}
+                      onClick={() => setSelectedTag(selectedTag === tag.name ? null : tag.name)}
+                      data-testid={`filter-tag-${tag.name}`}
+                    >
+                      <Hash className="w-2.5 h-2.5 mr-1" />
+                      {tag.name}
+                    </Badge>
+                  ))}
+                  
+                  {allTags.length === 0 && (
+                    <span className="text-sm text-muted-foreground italic">No tags available yet</span>
+                  )}
+                </div>
+              </div>
+              
+              {selectedTag && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Showing videos tagged with "<strong>{selectedTag}</strong>". {topVideos.length} video{topVideos.length !== 1 ? 's' : ''} found.
+                </p>
+              )}
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" data-testid="videos-grid">
               {topVideos.map((video: any, index: number) => (
                 <VideoCard
@@ -147,6 +211,7 @@ export default function Home() {
                   video={video}
                   position={index + 1}
                   onPlay={() => setSelectedVideo(video)}
+                  onTagClick={(tagName) => setSelectedTag(tagName)}
                 />
               ))}
             </div>
