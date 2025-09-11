@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
 import Navigation from "@/components/Navigation";
+import CreditPurchaseDialog from "@/components/CreditPurchaseDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,8 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [selectedVideoId, setSelectedVideoId] = useState("");
   const [boostAmount, setBoostAmount] = useState("");
+  const [showCreditPurchaseDialog, setShowCreditPurchaseDialog] = useState(false);
+  const [requiredCreditsForBoost, setRequiredCreditsForBoost] = useState(0);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -101,11 +104,8 @@ export default function Dashboard() {
     }
 
     if (!user || user.credits < amount) {
-      toast({
-        title: "Insufficient Credits",
-        description: "You don't have enough credits for this boost.",
-        variant: "destructive",
-      });
+      setRequiredCreditsForBoost(amount);
+      setShowCreditPurchaseDialog(true);
       return;
     }
 
@@ -326,7 +326,7 @@ export default function Dashboard() {
                     <Button
                       className="w-full bg-accent text-accent-foreground"
                       onClick={handleBoost}
-                      disabled={boostMutation.isPending || !selectedVideoId || !boostAmount}
+                      disabled={boostMutation.isPending || !selectedVideoId || !boostAmount || parseInt(boostAmount) < 10}
                       data-testid="button-boost-video"
                     >
                       {boostMutation.isPending ? (
@@ -372,6 +372,21 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Credit Purchase Dialog */}
+      <CreditPurchaseDialog
+        isOpen={showCreditPurchaseDialog}
+        onClose={() => setShowCreditPurchaseDialog(false)}
+        requiredCredits={requiredCreditsForBoost}
+        onPurchaseSuccess={() => {
+          // Refresh user data and try the boost again
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+          toast({
+            title: "Credits purchased!",
+            description: "You can now boost your video.",
+          });
+        }}
+      />
     </div>
   );
 }

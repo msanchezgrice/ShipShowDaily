@@ -306,6 +306,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Credit purchase route
+  app.post('/api/credits/purchase', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { packageId } = req.body;
+
+      if (!packageId) {
+        return res.status(400).json({ message: "Package ID is required" });
+      }
+
+      // Define credit packages (same as frontend)
+      const creditPackages = {
+        starter: { credits: 100, price: 5 },
+        popular: { credits: 500, price: 20, bonus: 50 },
+        pro: { credits: 1000, price: 35, bonus: 200 },
+        premium: { credits: 2500, price: 75, bonus: 750 }
+      };
+
+      const selectedPackage = creditPackages[packageId as keyof typeof creditPackages];
+      if (!selectedPackage) {
+        return res.status(400).json({ message: "Invalid package ID" });
+      }
+
+      // Calculate total credits including bonus
+      const totalCredits = selectedPackage.credits + (selectedPackage.bonus || 0);
+
+      // In a real application, this would integrate with a payment processor like Stripe
+      // For now, we'll simulate a successful purchase
+      
+      // Add credits to user account
+      await storage.updateUserCredits(userId, totalCredits);
+      
+      // Record the transaction
+      await storage.recordCreditTransaction({
+        userId,
+        type: 'purchase',
+        amount: totalCredits,
+        reason: `Purchased ${selectedPackage.credits} credits${selectedPackage.bonus ? ` + ${selectedPackage.bonus} bonus` : ''} for $${selectedPackage.price}`,
+      });
+
+      res.json({
+        success: true,
+        credits: totalCredits,
+        package: selectedPackage,
+        message: "Credits purchased successfully"
+      });
+    } catch (error: any) {
+      console.error("Error purchasing credits:", error);
+      res.status(500).json({ message: error.message || "Failed to purchase credits" });
+    }
+  });
+
   // Stats routes
   app.get('/api/stats/today', async (req, res) => {
     try {
