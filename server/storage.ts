@@ -4,6 +4,7 @@ import {
   videoViews,
   dailyStats,
   creditTransactions,
+  videoViewingSessions,
   type User,
   type UpsertUser,
   type Video,
@@ -13,6 +14,8 @@ import {
   type DailyStat,
   type CreditTransaction,
   type InsertCreditTransaction,
+  type VideoViewingSession,
+  type InsertVideoViewingSession,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, gte, lt } from "drizzle-orm";
@@ -57,6 +60,12 @@ export interface IStorage {
     creator: User;
     views: number;
   }>>;
+  
+  // Video viewing session operations (secure)
+  startVideoViewing(userId: string, videoId: string): Promise<VideoViewingSession>;
+  completeVideoViewing(sessionId: string): Promise<{ session: VideoViewingSession; creditAwarded: boolean }>;
+  getActiveVideoViewingSession(userId: string, videoId: string): Promise<VideoViewingSession | undefined>;
+  hasUserViewedVideoToday(userId: string, videoId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -343,6 +352,139 @@ export class DatabaseStorage implements IStorage {
       creator: row.creator,
       views: row.views,
     }));
+  }
+
+  // Video viewing session operations (secure)
+  async startVideoViewing(userId: string, videoId: string): Promise<VideoViewingSession> {
+    // Check if user already has an active session for this video
+    const existingSession = await this.getActiveVideoViewingSession(userId, videoId);
+    if (existingSession) {
+      return existingSession;
+    }
+
+    // Check if user already viewed this video today
+    const hasViewed = await this.hasUserViewedVideoToday(userId, videoId);
+    if (hasViewed) {
+      throw new Error("Video already viewed today");
+    }
+
+    const [session] = await db
+      .insert(videoViewingSessions)
+      .values({
+        userId,
+        videoId,
+      })
+      .returning();
+    
+    return session;
+  }
+
+  async completeVideoViewing(sessionId: string): Promise<{ session: VideoViewingSession; creditAwarded: boolean }> {
+    // Get the viewing session
+    const [session] = await db
+      .select()
+      .from(videoViewingSessions)
+      .where(eq(videoViewingSessions.id, sessionId));
+
+    if (!session) {
+      throw new Error("Viewing session not found");
+    }
+
+    if (session.isCompleted) {
+      throw new Error("Session already completed");
+    }
+
+    // Calculate elapsed time in seconds
+    const now = new Date();
+    const startTime = new Date(session.startedAt);
+    const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+
+    // Check if minimum watch time has been met (30 seconds)
+    const completedMinimum = elapsedSeconds >= 30;
+
+    // Mark session as completed
+    const [updatedSession] = await db
+      .update(videoViewingSessions)
+      .set({
+        isCompleted: true,
+        completedAt: now,
+      })
+      .where(eq(videoViewingSessions.id, sessionId))
+      .returning();
+
+    let creditAwarded = false;
+
+    if (completedMinimum) {
+      // Check if user already earned credit for this video today (double-check)
+      const hasViewedToday = await this.hasUserViewedVideoToday(session.userId, session.videoId);
+      
+      if (!hasViewedToday) {
+        // Record the video view
+        await this.recordVideoView({
+          videoId: session.videoId,
+          viewerId: session.userId,
+          watchDuration: elapsedSeconds,
+          completedMinimum: true,
+          creditAwarded: true,
+        });
+
+        // Award credit
+        await this.updateUserCredits(session.userId, 1);
+        await this.recordCreditTransaction({
+          userId: session.userId,
+          type: 'earned',
+          amount: 1,
+          reason: 'video_watch',
+          videoId: session.videoId,
+        });
+
+        // Update video stats
+        await this.incrementVideoViews(session.videoId);
+        await this.updateDailyStats(session.videoId, 1);
+
+        creditAwarded = true;
+      }
+    }
+
+    return {
+      session: updatedSession,
+      creditAwarded,
+    };
+  }
+
+  async getActiveVideoViewingSession(userId: string, videoId: string): Promise<VideoViewingSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(videoViewingSessions)
+      .where(
+        and(
+          eq(videoViewingSessions.userId, userId),
+          eq(videoViewingSessions.videoId, videoId),
+          eq(videoViewingSessions.isCompleted, false)
+        )
+      )
+      .orderBy(desc(videoViewingSessions.startedAt))
+      .limit(1);
+
+    return session;
+  }
+
+  async hasUserViewedVideoToday(userId: string, videoId: string): Promise<boolean> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const [view] = await db
+      .select()
+      .from(videoViews)
+      .where(
+        and(
+          eq(videoViews.viewerId, userId),
+          eq(videoViews.videoId, videoId),
+          gte(videoViews.watchedAt, today)
+        )
+      );
+    
+    return !!view;
   }
 }
 

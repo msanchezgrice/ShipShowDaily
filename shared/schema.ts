@@ -9,6 +9,7 @@ import {
   integer,
   boolean,
   date,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -69,7 +70,10 @@ export const dailyStats = pgTable("daily_stats", {
   videoId: varchar("video_id").notNull().references(() => videos.id),
   views: integer("views").default(0).notNull(),
   creditsSpent: integer("credits_spent").default(0).notNull(), // credits spent to boost this video
-});
+}, (table) => ({
+  // Unique constraint for video-date combination to support ON CONFLICT
+  uniqueVideoDate: uniqueIndex("unique_video_date").on(table.videoId, table.date),
+}));
 
 export const creditTransactions = pgTable("credit_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -81,11 +85,24 @@ export const creditTransactions = pgTable("credit_transactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const videoViewingSessions = pgTable("video_viewing_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  videoId: varchar("video_id").notNull().references(() => videos.id),
+  startedAt: timestamp("started_at").defaultNow(),
+  isCompleted: boolean("is_completed").default(false).notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => ({
+  // Unique constraint to prevent multiple active sessions per user-video pair
+  uniqueActiveSession: uniqueIndex("unique_active_session").on(table.userId, table.videoId, table.isCompleted),
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   videos: many(videos),
   videoViews: many(videoViews),
   creditTransactions: many(creditTransactions),
+  videoViewingSessions: many(videoViewingSessions),
 }));
 
 export const videosRelations = relations(videos, ({ one, many }) => ({
@@ -96,6 +113,7 @@ export const videosRelations = relations(videos, ({ one, many }) => ({
   views: many(videoViews),
   dailyStats: many(dailyStats),
   creditTransactions: many(creditTransactions),
+  viewingSessions: many(videoViewingSessions),
 }));
 
 export const videoViewsRelations = relations(videoViews, ({ one }) => ({
@@ -127,6 +145,17 @@ export const creditTransactionsRelations = relations(creditTransactions, ({ one 
   }),
 }));
 
+export const videoViewingSessionsRelations = relations(videoViewingSessions, ({ one }) => ({
+  user: one(users, {
+    fields: [videoViewingSessions.userId],
+    references: [users.id],
+  }),
+  video: one(videos, {
+    fields: [videoViewingSessions.videoId],
+    references: [videos.id],
+  }),
+}));
+
 // Insert schemas
 export const insertVideoSchema = createInsertSchema(videos).omit({
   id: true,
@@ -146,6 +175,12 @@ export const insertCreditTransactionSchema = createInsertSchema(creditTransactio
   createdAt: true,
 });
 
+export const insertVideoViewingSessionSchema = createInsertSchema(videoViewingSessions).omit({
+  id: true,
+  startedAt: true,
+  completedAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -156,3 +191,5 @@ export type VideoView = typeof videoViews.$inferSelect;
 export type InsertCreditTransaction = z.infer<typeof insertCreditTransactionSchema>;
 export type CreditTransaction = typeof creditTransactions.$inferSelect;
 export type DailyStat = typeof dailyStats.$inferSelect;
+export type InsertVideoViewingSession = z.infer<typeof insertVideoViewingSessionSchema>;
+export type VideoViewingSession = typeof videoViewingSessions.$inferSelect;

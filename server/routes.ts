@@ -78,54 +78,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Video viewing routes
-  app.post('/api/videos/:id/view', isAuthenticated, async (req: any, res) => {
+  // Video viewing routes (secure start/complete handshake)
+  app.post('/api/videos/:id/start', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const videoId = req.params.id;
       
-      // Check if user already viewed this video today
-      const hasViewed = await storage.hasUserViewedVideo(userId, videoId);
-      if (hasViewed) {
-        return res.status(400).json({ message: "Video already viewed today" });
-      }
+      // Start a viewing session (this handles all validation)
+      const session = await storage.startVideoViewing(userId, videoId);
 
-      const { watchDuration } = req.body;
-      if (!watchDuration || watchDuration < 30) {
-        return res.status(400).json({ message: "Minimum 30 seconds watch time required" });
-      }
-
-      const completedMinimum = watchDuration >= 30;
-      
-      // Record the view
-      const view = await storage.recordVideoView({
-        videoId,
-        viewerId: userId,
-        watchDuration,
-        completedMinimum,
-        creditAwarded: completedMinimum,
+      res.json({ 
+        sessionId: session.id,
+        message: "Video viewing session started" 
       });
+    } catch (error) {
+      console.error("Error starting video viewing:", error);
+      if (error.message === "Video already viewed today") {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to start video viewing session" });
+    }
+  });
 
-      // Award credit if minimum watch time met
-      if (completedMinimum) {
-        await storage.updateUserCredits(userId, 1);
-        await storage.recordCreditTransaction({
-          userId,
-          type: 'earned',
-          amount: 1,
-          reason: 'video_watch',
-          videoId,
-        });
+  app.post('/api/videos/:id/complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const videoId = req.params.id;
+      const { sessionId } = req.body;
+
+      if (!sessionId) {
+        return res.status(400).json({ message: "Session ID is required" });
       }
 
-      // Update video stats
-      await storage.incrementVideoViews(videoId);
-      await storage.updateDailyStats(videoId, 1);
+      // Complete the viewing session (server validates timing)
+      const result = await storage.completeVideoViewing(sessionId);
 
-      res.json({ view, creditAwarded: completedMinimum });
+      res.json({ 
+        creditAwarded: result.creditAwarded,
+        watchDuration: Math.floor((new Date(result.session.completedAt!).getTime() - new Date(result.session.startedAt).getTime()) / 1000),
+        message: result.creditAwarded ? "Credit earned!" : "Session completed, minimum watch time not met"
+      });
     } catch (error) {
-      console.error("Error recording video view:", error);
-      res.status(500).json({ message: "Failed to record video view" });
+      console.error("Error completing video viewing:", error);
+      if (error.message === "Viewing session not found" || error.message === "Session already completed") {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to complete video viewing session" });
     }
   });
 

@@ -33,14 +33,47 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [hasEarnedCredit, setHasEarnedCredit] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionStarted, setSessionStarted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const recordViewMutation = useMutation({
-    mutationFn: async (watchDuration: number) => {
-      return await apiRequest("POST", `/api/videos/${video.id}/view`, { watchDuration });
+  const startViewingMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/videos/${video.id}/start`);
+    },
+    onSuccess: (response: any) => {
+      setSessionId(response.sessionId);
+      setSessionStarted(true);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      // Don't show error for "already viewed" - it's expected
+      if (!error.message.includes("already viewed")) {
+        toast({
+          title: "Error",
+          description: "Failed to start video viewing session.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const completeViewingMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      return await apiRequest("POST", `/api/videos/${video.id}/complete`, { sessionId });
     },
     onSuccess: (response: any) => {
       if (response.creditAwarded) {
@@ -64,11 +97,11 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
         }, 500);
         return;
       }
-      // Don't show error for "already viewed" - it's expected
-      if (!error.message.includes("already viewed")) {
+      // Don't show error for session issues - they're expected for edge cases
+      if (!error.message.includes("session") && !error.message.includes("already completed")) {
         toast({
           title: "Error",
-          description: "Failed to record video view.",
+          description: "Failed to complete video viewing.",
           variant: "destructive",
         });
       }
@@ -80,9 +113,66 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        // Start viewing session when user starts playing
+        if (!sessionStarted && !startViewingMutation.isPending) {
+          startViewingMutation.mutate();
+        }
+        
+        // For placeholder videos, simulate playback with a timer
+        if (!video.videoPath || video.videoPath.includes('example.com')) {
+          setIsPlaying(true);
+          simulateVideoPlayback();
+        } else {
+          videoRef.current.play();
+        }
       }
       setIsPlaying(!isPlaying);
+    }
+  };
+
+  const simulateVideoPlayback = () => {
+    if (videoRef.current) {
+      // Set a fake duration for simulation
+      Object.defineProperty(videoRef.current, 'duration', {
+        writable: true,
+        value: 60 // 60 second duration
+      });
+      
+      let simTime = 0;
+      console.log("Starting video simulation");
+      
+      // Simulate time updates
+      const interval = setInterval(() => {
+        console.log(`Simulation tick: ${simTime}s, isPlaying: ${isPlaying}, sessionId: ${sessionId}, hasEarnedCredit: ${hasEarnedCredit}`);
+        
+        if (isPlaying) {
+          simTime += 1;
+          setCurrentTime(simTime);
+          
+          // Trigger completion at 30 seconds
+          if (simTime >= 30 && !hasEarnedCredit && sessionId && !completeViewingMutation.isPending) {
+            console.log("Triggering completion at 30 seconds with sessionId:", sessionId);
+            completeViewingMutation.mutate(sessionId);
+          }
+          
+          if (simTime >= 60) {
+            console.log("Video simulation ended at 60 seconds");
+            clearInterval(interval);
+            setIsPlaying(false);
+            // Complete session on video end if not already completed
+            if (!hasEarnedCredit && sessionId && !completeViewingMutation.isPending) {
+              console.log("Completing session on video end");
+              completeViewingMutation.mutate(sessionId);
+            }
+          }
+        } else {
+          console.log("Video paused, clearing interval");
+          clearInterval(interval);
+        }
+      }, 1000);
+      
+      // Store interval for cleanup
+      (videoRef.current as any).simulationInterval = interval;
     }
   };
 
@@ -91,17 +181,18 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
       const time = videoRef.current.currentTime;
       setCurrentTime(time);
       
-      // Award credit at 30 seconds if not already awarded
-      if (time >= 30 && !hasEarnedCredit && !recordViewMutation.isPending) {
-        recordViewMutation.mutate(Math.floor(time));
+      // Complete session at 30 seconds if not already completed
+      if (time >= 30 && !hasEarnedCredit && sessionId && !completeViewingMutation.isPending) {
+        completeViewingMutation.mutate(sessionId);
       }
     }
   };
 
   const handleVideoEnd = () => {
     setIsPlaying(false);
-    if (!hasEarnedCredit && !recordViewMutation.isPending) {
-      recordViewMutation.mutate(Math.floor(currentTime));
+    // Complete session on video end if not already completed
+    if (!hasEarnedCredit && sessionId && !completeViewingMutation.isPending) {
+      completeViewingMutation.mutate(sessionId);
     }
   };
 
