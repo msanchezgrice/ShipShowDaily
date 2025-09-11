@@ -47,6 +47,11 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
     onSuccess: (response: any) => {
       setSessionId(response.sessionId);
       setSessionStarted(true);
+      
+      // Start simulation after session is created for placeholder videos
+      if (isPlaying && (!video.videoPath || video.videoPath.includes('example.com'))) {
+        setTimeout(() => simulateVideoPlayback(), 100);
+      }
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -112,21 +117,21 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
+        setIsPlaying(false);
       } else {
         // Start viewing session when user starts playing
         if (!sessionStarted && !startViewingMutation.isPending) {
           startViewingMutation.mutate();
         }
         
-        // For placeholder videos, simulate playback with a timer
+        // For placeholder videos, just set playing state (simulation starts after session creation)
         if (!video.videoPath || video.videoPath.includes('example.com')) {
           setIsPlaying(true);
-          simulateVideoPlayback();
         } else {
           videoRef.current.play();
+          setIsPlaying(true);
         }
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
