@@ -260,9 +260,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/leaderboard', async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
-      const leaderboard = await storage.getTodayLeaderboard(limit);
-      res.json(leaderboard);
-    } catch (error) {
+      const sortBy = (req.query.sortBy as string) || 'views';
+      const tagFilter = req.query.tag as string;
+      
+      // Use enhanced leaderboard if filtering options are provided
+      if (sortBy !== 'views' || tagFilter) {
+        const enhancedLeaderboard = await storage.getEnhancedLeaderboard(limit, sortBy as any, tagFilter);
+        res.json(enhancedLeaderboard);
+      } else {
+        // Use original leaderboard for basic views sorting (for backward compatibility)
+        const leaderboard = await storage.getTodayLeaderboard(limit);
+        res.json(leaderboard);
+      }
+    } catch (error: any) {
       console.error("Error fetching leaderboard:", error);
       res.status(500).json({ message: "Failed to fetch leaderboard" });
     }

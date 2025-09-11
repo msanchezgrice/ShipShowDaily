@@ -77,6 +77,14 @@ export interface IStorage {
     creator: User;
     views: number;
   }>>;
+  getEnhancedLeaderboard(limit?: number, sortBy?: 'views' | 'favorites' | 'demo_clicks', tagFilter?: string): Promise<Array<{
+    position: number;
+    video: Video & { tags: Tag[] };
+    creator: User;
+    views: number;
+    favorites: number;
+    demoClicks: number;
+  }>>;
   
   // Video viewing session operations (secure)
   startVideoViewing(userId: string, videoId: string): Promise<VideoViewingSession>;
@@ -383,6 +391,102 @@ export class DatabaseStorage implements IStorage {
       video: row.video,
       creator: row.creator,
       views: row.views,
+    }));
+  }
+
+  async getEnhancedLeaderboard(limit = 10, sortBy: 'views' | 'favorites' | 'demo_clicks' = 'views', tagFilter?: string): Promise<Array<{
+    position: number;
+    video: Video & { tags: Tag[] };
+    creator: User;
+    views: number;
+    favorites: number;
+    demoClicks: number;
+  }>> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Base query
+    let query = db
+      .select({
+        video: videos,
+        creator: users,
+        views: sql<number>`COALESCE(${dailyStats.views}, 0)`,
+        favorites: sql<number>`COUNT(DISTINCT ${videoFavorites.id})`,
+        demoClicks: sql<number>`COUNT(DISTINCT CASE 
+          WHEN ${demoLinkClicks.clickedAt} >= ${today} 
+          AND ${demoLinkClicks.clickedAt} < ${tomorrow} 
+          THEN ${demoLinkClicks.id} 
+          ELSE NULL 
+        END)`,
+      })
+      .from(videos)
+      .innerJoin(users, eq(videos.creatorId, users.id))
+      .leftJoin(
+        dailyStats,
+        and(
+          eq(videos.id, dailyStats.videoId),
+          eq(dailyStats.date, todayStr)
+        )
+      )
+      .leftJoin(videoFavorites, eq(videos.id, videoFavorites.videoId))
+      .leftJoin(demoLinkClicks, eq(videos.id, demoLinkClicks.videoId))
+      .where(eq(videos.isActive, true));
+
+    // Add tag filtering if specified
+    if (tagFilter) {
+      query = query
+        .innerJoin(videoTags, eq(videos.id, videoTags.videoId))
+        .innerJoin(tags, and(eq(videoTags.tagId, tags.id), eq(tags.name, tagFilter)));
+    }
+
+    // Group and order by the specified metric
+    let orderBy;
+    switch (sortBy) {
+      case 'favorites':
+        orderBy = desc(sql`COUNT(DISTINCT ${videoFavorites.id})`);
+        break;
+      case 'demo_clicks':
+        orderBy = desc(sql`COUNT(DISTINCT CASE 
+          WHEN ${demoLinkClicks.clickedAt} >= ${today} 
+          AND ${demoLinkClicks.clickedAt} < ${tomorrow} 
+          THEN ${demoLinkClicks.id} 
+          ELSE NULL 
+        END)`);
+        break;
+      default:
+        orderBy = desc(sql`COALESCE(${dailyStats.views}, 0)`);
+    }
+
+    const result = await query
+      .groupBy(videos.id, users.id, dailyStats.views)
+      .orderBy(orderBy)
+      .limit(limit);
+
+    // Get tags for each video
+    const videosWithTags = await Promise.all(
+      result.map(async (row) => {
+        const videoTags = await this.getVideoTags(row.video.id);
+        return {
+          position: 0, // Will be set below
+          video: {
+            ...row.video,
+            tags: videoTags,
+          },
+          creator: row.creator,
+          views: row.views,
+          favorites: row.favorites,
+          demoClicks: row.demoClicks,
+        };
+      })
+    );
+
+    // Set positions
+    return videosWithTags.map((item, index) => ({
+      ...item,
+      position: index + 1,
     }));
   }
 

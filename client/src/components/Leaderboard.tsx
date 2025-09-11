@@ -1,13 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Crown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Trophy, Crown, Eye, Heart, ExternalLink, Hash } from "lucide-react";
 
 interface LeaderboardItem {
   position: number;
   video: {
     id: string;
     title: string;
+    tags?: Array<{ id: string; name: string }>;
   };
   creator: {
     id: string;
@@ -17,13 +19,17 @@ interface LeaderboardItem {
     profileImageUrl?: string;
   };
   views: number;
+  favorites?: number;
+  demoClicks?: number;
 }
 
 interface LeaderboardProps {
   items: LeaderboardItem[];
+  sortBy?: 'views' | 'favorites' | 'demo_clicks';
+  onSortChange?: (sortBy: 'views' | 'favorites' | 'demo_clicks') => void;
 }
 
-export default function Leaderboard({ items }: LeaderboardProps) {
+export default function Leaderboard({ items, sortBy = 'views', onSortChange }: LeaderboardProps) {
   const getPositionColor = (position: number) => {
     switch (position) {
       case 1:
@@ -57,13 +63,81 @@ export default function Leaderboard({ items }: LeaderboardProps) {
     return "U";
   };
 
+  const getMetricValue = (item: LeaderboardItem) => {
+    switch (sortBy) {
+      case 'favorites':
+        return item.favorites || 0;
+      case 'demo_clicks':
+        return item.demoClicks || 0;
+      default:
+        return item.views;
+    }
+  };
+
+  const getMetricLabel = () => {
+    switch (sortBy) {
+      case 'favorites':
+        return 'favorites';
+      case 'demo_clicks':
+        return 'demo clicks';
+      default:
+        return 'views';
+    }
+  };
+
+  const getMetricIcon = () => {
+    switch (sortBy) {
+      case 'favorites':
+        return Heart;
+      case 'demo_clicks':
+        return ExternalLink;
+      default:
+        return Eye;
+    }
+  };
+
+  const MetricIcon = getMetricIcon();
+
   return (
     <Card className="bg-card border-border">
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <Trophy className="text-accent mr-2 h-5 w-5" />
-          Daily Leaderboard
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center">
+            <Trophy className="text-accent mr-2 h-5 w-5" />
+            Daily Leaderboard
+          </CardTitle>
+          {onSortChange && (
+            <div className="flex space-x-1">
+              <Button
+                variant={sortBy === 'views' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => onSortChange('views')}
+                data-testid="sort-by-views"
+              >
+                <Eye className="h-3 w-3 mr-1" />
+                Views
+              </Button>
+              <Button
+                variant={sortBy === 'favorites' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => onSortChange('favorites')}
+                data-testid="sort-by-favorites"
+              >
+                <Heart className="h-3 w-3 mr-1" />
+                Favorites
+              </Button>
+              <Button
+                variant={sortBy === 'demo_clicks' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => onSortChange('demo_clicks')}
+                data-testid="sort-by-demo-clicks"
+              >
+                <ExternalLink className="h-3 w-3 mr-1" />
+                Clicks
+              </Button>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3" data-testid="leaderboard-list">
@@ -96,22 +170,81 @@ export default function Leaderboard({ items }: LeaderboardProps) {
                       {getCreatorInitial(item.creator)}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium text-foreground text-sm">
                       {getCreatorName(item.creator)}
                     </p>
                     <p className="text-xs text-muted-foreground line-clamp-1">
                       {item.video.title}
                     </p>
+                    {item.video.tags && item.video.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {item.video.tags.slice(0, 3).map((tag) => (
+                          <Badge
+                            key={tag.id}
+                            variant="secondary"
+                            className="text-xs px-1 py-0 h-4"
+                          >
+                            <Hash className="h-2 w-2 mr-0.5" />
+                            {tag.name}
+                          </Badge>
+                        ))}
+                        {item.video.tags.length > 3 && (
+                          <span className="text-xs text-muted-foreground">+{item.video.tags.length - 3} more</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`font-semibold ${
-                    item.position === 1 ? 'text-accent' : 'text-foreground'
-                  }`}>
-                    {item.views.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">views</p>
+                  <div className="flex items-center justify-end space-x-3">
+                    {/* Primary metric */}
+                    <div className="text-right">
+                      <div className="flex items-center justify-end">
+                        <MetricIcon className="h-3 w-3 mr-1 text-muted-foreground" />
+                        <p className={`font-semibold ${
+                          item.position === 1 ? 'text-accent' : 'text-foreground'
+                        }`}>
+                          {getMetricValue(item).toLocaleString()}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{getMetricLabel()}</p>
+                    </div>
+                    
+                    {/* Secondary metrics (when not primary) */}
+                    {sortBy !== 'views' && (
+                      <div className="text-right opacity-70">
+                        <div className="flex items-center justify-end">
+                          <Eye className="h-2 w-2 mr-1 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            {item.views.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {sortBy !== 'favorites' && item.favorites !== undefined && (
+                      <div className="text-right opacity-70">
+                        <div className="flex items-center justify-end">
+                          <Heart className="h-2 w-2 mr-1 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            {item.favorites.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {sortBy !== 'demo_clicks' && item.demoClicks !== undefined && (
+                      <div className="text-right opacity-70">
+                        <div className="flex items-center justify-end">
+                          <ExternalLink className="h-2 w-2 mr-1 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            {item.demoClicks.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
