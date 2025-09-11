@@ -1,0 +1,349 @@
+import {
+  users,
+  videos,
+  videoViews,
+  dailyStats,
+  creditTransactions,
+  type User,
+  type UpsertUser,
+  type Video,
+  type InsertVideo,
+  type VideoView,
+  type InsertVideoView,
+  type DailyStat,
+  type CreditTransaction,
+  type InsertCreditTransaction,
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, sql, and, gte, lt } from "drizzle-orm";
+
+// Interface for storage operations
+export interface IStorage {
+  // User operations
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  updateUserCredits(userId: string, amount: number): Promise<void>;
+  
+  // Video operations
+  createVideo(video: InsertVideo): Promise<Video>;
+  getVideo(id: string): Promise<Video | undefined>;
+  getVideoWithCreator(id: string): Promise<(Video & { creator: User }) | undefined>;
+  getUserVideos(userId: string): Promise<(Video & { todayViews: number })[]>;
+  getTopVideosToday(limit?: number): Promise<(Video & { creator: User; todayViews: number })[]>;
+  incrementVideoViews(videoId: string): Promise<void>;
+  
+  // Video viewing operations
+  recordVideoView(view: InsertVideoView): Promise<VideoView>;
+  hasUserViewedVideo(userId: string, videoId: string): Promise<boolean>;
+  
+  // Daily stats operations
+  getTodayStats(): Promise<{
+    totalViews: number;
+    demosSubmitted: number;
+    creditsEarned: number;
+    activeUsers: number;
+  }>;
+  getVideoStatsToday(videoId: string): Promise<DailyStat | undefined>;
+  updateDailyStats(videoId: string, views: number, creditsSpent?: number): Promise<void>;
+  
+  // Credit operations
+  recordCreditTransaction(transaction: InsertCreditTransaction): Promise<CreditTransaction>;
+  getUserCreditTransactions(userId: string, limit?: number): Promise<CreditTransaction[]>;
+  
+  // Leaderboard operations
+  getTodayLeaderboard(limit?: number): Promise<Array<{
+    position: number;
+    video: Video;
+    creator: User;
+    views: number;
+  }>>;
+}
+
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  async updateUserCredits(userId: string, amount: number): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        credits: sql`${users.credits} + ${amount}`,
+        totalCreditsEarned: amount > 0 ? sql`${users.totalCreditsEarned} + ${amount}` : users.totalCreditsEarned,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+  }
+
+  // Video operations
+  async createVideo(video: InsertVideo): Promise<Video> {
+    const [newVideo] = await db.insert(videos).values(video).returning();
+    return newVideo;
+  }
+
+  async getVideo(id: string): Promise<Video | undefined> {
+    const [video] = await db.select().from(videos).where(eq(videos.id, id));
+    return video;
+  }
+
+  async getVideoWithCreator(id: string): Promise<(Video & { creator: User }) | undefined> {
+    const result = await db
+      .select()
+      .from(videos)
+      .innerJoin(users, eq(videos.creatorId, users.id))
+      .where(eq(videos.id, id));
+    
+    if (result.length === 0) return undefined;
+    
+    return {
+      ...result[0].videos,
+      creator: result[0].users,
+    };
+  }
+
+  async getUserVideos(userId: string): Promise<(Video & { todayViews: number })[]> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const result = await db
+      .select({
+        video: videos,
+        todayViews: sql<number>`COALESCE(${dailyStats.views}, 0)`,
+      })
+      .from(videos)
+      .leftJoin(
+        dailyStats,
+        and(
+          eq(videos.id, dailyStats.videoId),
+          eq(dailyStats.date, today)
+        )
+      )
+      .where(eq(videos.creatorId, userId))
+      .orderBy(desc(videos.createdAt));
+
+    return result.map(row => ({
+      ...row.video,
+      todayViews: row.todayViews,
+    }));
+  }
+
+  async getTopVideosToday(limit = 10): Promise<(Video & { creator: User; todayViews: number })[]> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const result = await db
+      .select({
+        video: videos,
+        creator: users,
+        todayViews: sql<number>`COALESCE(${dailyStats.views}, 0)`,
+      })
+      .from(videos)
+      .innerJoin(users, eq(videos.creatorId, users.id))
+      .leftJoin(
+        dailyStats,
+        and(
+          eq(videos.id, dailyStats.videoId),
+          eq(dailyStats.date, today)
+        )
+      )
+      .where(eq(videos.isActive, true))
+      .orderBy(desc(sql`COALESCE(${dailyStats.views}, 0)`))
+      .limit(limit);
+
+    return result.map(row => ({
+      ...row.video,
+      creator: row.creator,
+      todayViews: row.todayViews,
+    }));
+  }
+
+  async incrementVideoViews(videoId: string): Promise<void> {
+    await db
+      .update(videos)
+      .set({
+        totalViews: sql`${videos.totalViews} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(videos.id, videoId));
+  }
+
+  // Video viewing operations
+  async recordVideoView(view: InsertVideoView): Promise<VideoView> {
+    const [newView] = await db.insert(videoViews).values(view).returning();
+    return newView;
+  }
+
+  async hasUserViewedVideo(userId: string, videoId: string): Promise<boolean> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const [view] = await db
+      .select()
+      .from(videoViews)
+      .where(
+        and(
+          eq(videoViews.viewerId, userId),
+          eq(videoViews.videoId, videoId),
+          gte(videoViews.watchedAt, today)
+        )
+      );
+    
+    return !!view;
+  }
+
+  // Daily stats operations
+  async getTodayStats(): Promise<{
+    totalViews: number;
+    demosSubmitted: number;
+    creditsEarned: number;
+    activeUsers: number;
+  }> {
+    const today = new Date().toISOString().split('T')[0];
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    const [statsResult] = await db
+      .select({
+        totalViews: sql<number>`COALESCE(SUM(${dailyStats.views}), 0)`,
+      })
+      .from(dailyStats)
+      .where(eq(dailyStats.date, today));
+
+    const [videosResult] = await db
+      .select({
+        demosSubmitted: sql<number>`COUNT(*)`,
+      })
+      .from(videos)
+      .where(gte(videos.createdAt, todayStart));
+
+    const [creditsResult] = await db
+      .select({
+        creditsEarned: sql<number>`COALESCE(SUM(${creditTransactions.amount}), 0)`,
+      })
+      .from(creditTransactions)
+      .where(
+        and(
+          eq(creditTransactions.type, 'earned'),
+          gte(creditTransactions.createdAt, todayStart)
+        )
+      );
+
+    const [usersResult] = await db
+      .select({
+        activeUsers: sql<number>`COUNT(DISTINCT ${videoViews.viewerId})`,
+      })
+      .from(videoViews)
+      .where(gte(videoViews.watchedAt, todayStart));
+
+    return {
+      totalViews: statsResult?.totalViews || 0,
+      demosSubmitted: videosResult?.demosSubmitted || 0,
+      creditsEarned: creditsResult?.creditsEarned || 0,
+      activeUsers: usersResult?.activeUsers || 0,
+    };
+  }
+
+  async getVideoStatsToday(videoId: string): Promise<DailyStat | undefined> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const [stat] = await db
+      .select()
+      .from(dailyStats)
+      .where(
+        and(
+          eq(dailyStats.videoId, videoId),
+          eq(dailyStats.date, today)
+        )
+      );
+    
+    return stat;
+  }
+
+  async updateDailyStats(videoId: string, views: number, creditsSpent = 0): Promise<void> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    await db
+      .insert(dailyStats)
+      .values({
+        date: today,
+        videoId,
+        views,
+        creditsSpent,
+      })
+      .onConflictDoUpdate({
+        target: [dailyStats.videoId, dailyStats.date],
+        set: {
+          views: sql`${dailyStats.views} + ${views}`,
+          creditsSpent: sql`${dailyStats.creditsSpent} + ${creditsSpent}`,
+        },
+      });
+  }
+
+  // Credit operations
+  async recordCreditTransaction(transaction: InsertCreditTransaction): Promise<CreditTransaction> {
+    const [newTransaction] = await db.insert(creditTransactions).values(transaction).returning();
+    return newTransaction;
+  }
+
+  async getUserCreditTransactions(userId: string, limit = 50): Promise<CreditTransaction[]> {
+    return await db
+      .select()
+      .from(creditTransactions)
+      .where(eq(creditTransactions.userId, userId))
+      .orderBy(desc(creditTransactions.createdAt))
+      .limit(limit);
+  }
+
+  // Leaderboard operations
+  async getTodayLeaderboard(limit = 10): Promise<Array<{
+    position: number;
+    video: Video;
+    creator: User;
+    views: number;
+  }>> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const result = await db
+      .select({
+        video: videos,
+        creator: users,
+        views: sql<number>`COALESCE(${dailyStats.views}, 0)`,
+      })
+      .from(videos)
+      .innerJoin(users, eq(videos.creatorId, users.id))
+      .leftJoin(
+        dailyStats,
+        and(
+          eq(videos.id, dailyStats.videoId),
+          eq(dailyStats.date, today)
+        )
+      )
+      .where(eq(videos.isActive, true))
+      .orderBy(desc(sql`COALESCE(${dailyStats.views}, 0)`))
+      .limit(limit);
+
+    return result.map((row, index) => ({
+      position: index + 1,
+      video: row.video,
+      creator: row.creator,
+      views: row.views,
+    }));
+  }
+}
+
+export const storage = new DatabaseStorage();
