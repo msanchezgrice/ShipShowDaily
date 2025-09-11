@@ -26,7 +26,6 @@ export default function Navigation() {
     { href: "/", label: "Leaderboard", icon: Trophy, active: location === "/" },
     { href: "/dashboard", label: "Dashboard", icon: BarChart3, active: location === "/dashboard" },
     { href: "/submit-demo", label: "Submit Demo", icon: Upload, active: location === "/submit-demo" },
-    { href: "/settings", label: "Settings", icon: Settings, active: location === "/settings" },
   ];
 
   return (
@@ -51,6 +50,15 @@ export default function Navigation() {
                   {item.label}
                 </Button>
               ))}
+              {/* Settings Icon */}
+              <Button
+                variant={location === "/settings" ? "default" : "ghost"}
+                className={location === "/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}
+                onClick={() => window.location.href = "/settings"}
+                data-testid="nav-settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           

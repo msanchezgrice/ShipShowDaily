@@ -14,7 +14,6 @@ export default function Home() {
   const [resetTimer, setResetTimer] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [leaderboardSortBy, setLeaderboardSortBy] = useState<'views' | 'favorites' | 'demo_clicks'>('views');
-  const [leaderboardTagFilter, setLeaderboardTagFilter] = useState<string | null>(null);
 
   const { data: topVideos = [] } = useQuery<any[]>({
     queryKey: ["/api/videos/top", selectedTag],
@@ -42,14 +41,11 @@ export default function Home() {
   });
 
   const { data: leaderboard = [] } = useQuery<any[]>({
-    queryKey: ["/api/leaderboard", leaderboardSortBy, leaderboardTagFilter],
+    queryKey: ["/api/leaderboard", leaderboardSortBy],
     queryFn: () => {
       const params = new URLSearchParams();
       if (leaderboardSortBy !== 'views') {
         params.append('sortBy', leaderboardSortBy);
-      }
-      if (leaderboardTagFilter) {
-        params.append('tag', leaderboardTagFilter);
       }
       const url = `/api/leaderboard${params.toString() ? '?' + params.toString() : ''}`;
       return fetch(url).then(res => res.json());
@@ -239,55 +235,6 @@ export default function Home() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <div className="mb-4">
-              <div className="flex flex-wrap gap-2 items-center justify-between">
-                <span className="text-sm text-muted-foreground font-medium flex items-center">
-                  <Hash className="h-3 w-3 mr-1" />
-                  Filter leaderboard by tags:
-                </span>
-                
-                <div className="flex flex-wrap gap-2">
-                  {leaderboardTagFilter && (
-                    <Badge 
-                      className="bg-primary text-primary-foreground cursor-pointer hover:bg-primary/90 transition-colors"
-                      onClick={() => setLeaderboardTagFilter(null)}
-                      data-testid="active-leaderboard-tag-filter"
-                    >
-                      {leaderboardTagFilter}
-                      <X className="h-3 w-3 ml-1" />
-                    </Badge>
-                  )}
-                  
-                  {allTags.slice(0, 6).map((tag) => (
-                    <Badge
-                      key={tag.id}
-                      variant={leaderboardTagFilter === tag.name ? "default" : "secondary"}
-                      className={`cursor-pointer transition-colors ${
-                        leaderboardTagFilter === tag.name 
-                          ? "bg-primary text-primary-foreground" 
-                          : "hover:bg-primary/20"
-                      }`}
-                      onClick={() => setLeaderboardTagFilter(leaderboardTagFilter === tag.name ? null : tag.name)}
-                      data-testid={`filter-leaderboard-tag-${tag.name}`}
-                    >
-                      <Hash className="w-2.5 h-2.5 mr-1" />
-                      {tag.name}
-                    </Badge>
-                  ))}
-                  
-                  {allTags.length === 0 && (
-                    <span className="text-sm text-muted-foreground italic">No tags available</span>
-                  )}
-                </div>
-              </div>
-              
-              {leaderboardTagFilter && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Showing leaderboard for videos tagged with "<strong>{leaderboardTagFilter}</strong>".
-                </p>
-              )}
-            </div>
-            
             <Leaderboard 
               items={leaderboard} 
               sortBy={leaderboardSortBy}
