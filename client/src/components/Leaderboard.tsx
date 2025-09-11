@@ -113,27 +113,27 @@ export default function Leaderboard({ items, sortBy = 'views', onSortChange }: L
                 size="sm"
                 onClick={() => onSortChange('views')}
                 data-testid="sort-by-views"
+                className="px-2"
               >
-                <Eye className="h-3 w-3 mr-1" />
-                Views
+                <Eye className="h-4 w-4" />
               </Button>
               <Button
                 variant={sortBy === 'favorites' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => onSortChange('favorites')}
                 data-testid="sort-by-favorites"
+                className="px-2"
               >
-                <Heart className="h-3 w-3 mr-1" />
-                Favorites
+                <Heart className="h-4 w-4" />
               </Button>
               <Button
                 variant={sortBy === 'demo_clicks' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => onSortChange('demo_clicks')}
                 data-testid="sort-by-demo-clicks"
+                className="px-2"
               >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                Clicks
+                <ExternalLink className="h-4 w-4" />
               </Button>
             </div>
           )}
