@@ -33,7 +33,8 @@ function AuthTokenSetter() {
   const { getToken } = useClerkAuth();
   
   useEffect(() => {
-    setAuthTokenGetter(getToken);
+    // Use a Clerk JWT template to ensure a verifiable token for the backend
+    setAuthTokenGetter(() => getToken({ template: 'default' }));
   }, [getToken]);
   
   return null;
