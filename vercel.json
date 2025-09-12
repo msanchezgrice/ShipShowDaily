@@ -13,7 +13,7 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist/client"
+        "distDir": "dist/public"
       }
     }
   ],
@@ -29,11 +29,11 @@
     },
     {
       "src": "/assets/(.*)",
-      "dest": "/dist/client/assets/$1"
+      "dest": "/dist/public/assets/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/dist/client/$1"
+      "dest": "/dist/public/$1"
     }
   ],
   "env": {
