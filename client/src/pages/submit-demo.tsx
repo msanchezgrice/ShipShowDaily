@@ -8,7 +8,7 @@ import { ObjectUploader } from "@/components/ObjectUploader";
 import { TagInput } from "@/components/TagInput";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
+import { isUnauthorizedError, redirectToSignInClient } from "@/lib/authUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,9 +65,7 @@ export default function SubmitDemo() {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
+        setTimeout(() => redirectToSignInClient(), 500);
         return;
       }
       toast({
@@ -93,9 +91,7 @@ export default function SubmitDemo() {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
+        setTimeout(() => redirectToSignInClient(), 500);
       }
       throw error;
     }
@@ -125,9 +121,7 @@ export default function SubmitDemo() {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
+        setTimeout(() => redirectToSignInClient(), 500);
         return;
       }
       toast({

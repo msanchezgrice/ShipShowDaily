@@ -24,6 +24,7 @@ import {
   Award
 } from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "wouter";
 
 export default function Dashboard() {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const [showCreditPurchaseDialog, setShowCreditPurchaseDialog] = useState(false);
   const [showInsufficientCreditsDialog, setShowInsufficientCreditsDialog] = useState(false);
   const [requiredCreditsForBoost, setRequiredCreditsForBoost] = useState(0);
+  const [, navigate] = useLocation();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -43,9 +45,7 @@ export default function Dashboard() {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
+      setTimeout(() => navigate("/"), 500);
       return;
     }
   }, [isAuthenticated, isLoading, toast]);
@@ -81,9 +81,7 @@ export default function Dashboard() {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
+        setTimeout(() => navigate("/"), 500);
         return;
       }
       toast({

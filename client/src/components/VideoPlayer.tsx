@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
+import { isUnauthorizedError, redirectToSignInClient } from "@/lib/authUtils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,9 +70,7 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
+        setTimeout(() => redirectToSignInClient(), 500);
         return;
       }
       // Don't show error for "already viewed" - it's expected
@@ -107,9 +105,7 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
+        setTimeout(() => redirectToSignInClient(), 500);
         return;
       }
       // Don't show error for session issues - they're expected for edge cases
@@ -141,9 +137,7 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
+        setTimeout(() => redirectToSignInClient(), 500);
         return;
       }
       toast({
