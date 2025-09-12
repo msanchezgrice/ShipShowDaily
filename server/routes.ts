@@ -609,6 +609,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Seed placeholder videos (idempotent-ish for quick testing)
+  app.post('/api/dev/seed-placeholder-videos', async (_req, res) => {
+    try {
+      // Create a demo user if missing
+      const demoUser = await storage.upsertUser({
+        id: 'demo-user',
+        email: 'demo@shipshow.io',
+        firstName: 'Demo',
+        lastName: 'User',
+        credits: 1000,
+      });
+
+      const titles = Array.from({ length: 10 }, (_, i) => `Demo Product ${i + 1}`);
+      for (const [index, title] of titles.entries()) {
+        const video = await storage.createVideoWithTags({
+          title,
+          description: 'Placeholder demo video for testing feed and dashboard.',
+          productUrl: 'https://example.com',
+          videoPath: `/objects/demo/${index + 1}.mp4`,
+          creatorId: demoUser.id,
+          tags: ['demo', 'test']
+        } as any);
+
+        // Add a little stats so they show up
+        await storage.updateDailyStats(video.id, Math.floor(Math.random() * 50) + 1, Math.floor(Math.random() * 20));
+      }
+
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error('Seed failed', e);
+      res.status(500).json({ error: e?.message || 'Seed failed' });
+    }
+  });
+
   // Object storage routes
   app.get("/objects/:objectPath(*)", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
