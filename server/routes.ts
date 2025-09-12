@@ -6,10 +6,120 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { insertVideoSchema, insertVideoWithTagsSchema, insertVideoViewSchema, insertCreditTransactionSchema, insertVideoFavoriteSchema, insertDemoLinkClickSchema } from "@shared/schema";
 import { z } from "zod";
+import Stripe from "stripe";
+
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Webhook secret for verifying webhook signatures (optional but recommended)
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+// Server-side credit packages definition - this is the authoritative source
+const CREDIT_PACKAGES = {
+  starter: { credits: 100, price: 5 },
+  popular: { credits: 500, price: 20, bonus: 50 },
+  pro: { credits: 1000, price: 35, bonus: 200 },
+  premium: { credits: 2500, price: 75, bonus: 750 }
+} as const;
+
+type PackageId = keyof typeof CREDIT_PACKAGES;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Stripe webhook handler (must be before auth middleware)
+  app.post('/api/stripe/webhook', async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    
+    let event: Stripe.Event;
+
+    try {
+      // Verify webhook signature if secret is configured
+      if (webhookSecret && sig) {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } else {
+        // Fallback to parsing body without signature verification
+        // This is less secure but works in development without webhook secret
+        event = req.body;
+      }
+    } catch (err: any) {
+      console.error('Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+      // Handle payment_intent.succeeded event
+      if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        
+        console.log('Payment succeeded via webhook:', paymentIntent.id);
+
+        // Extract metadata from payment intent
+        const { userId, packageId, credits, bonus, totalCredits } = paymentIntent.metadata;
+        
+        if (!userId || !packageId || !totalCredits) {
+          console.error('Missing required metadata in payment intent:', paymentIntent.id);
+          return res.status(400).json({ error: 'Invalid payment intent metadata' });
+        }
+
+        // Validate package pricing against server-side definition
+        const serverPackage = CREDIT_PACKAGES[packageId as PackageId];
+        if (!serverPackage) {
+          console.error('Invalid package ID in payment intent:', packageId);
+          return res.status(400).json({ error: 'Invalid package in payment intent' });
+        }
+
+        // Validate payment amount matches server-side pricing
+        const expectedAmount = Math.round(serverPackage.price * 100);
+        if (paymentIntent.amount !== expectedAmount) {
+          console.error(`Payment amount mismatch: expected ${expectedAmount}, got ${paymentIntent.amount}`);
+          return res.status(400).json({ error: 'Payment amount validation failed' });
+        }
+
+        // Validate credit amounts match server-side calculation
+        const expectedBonus = 'bonus' in serverPackage ? serverPackage.bonus || 0 : 0;
+        const expectedTotalCredits = serverPackage.credits + expectedBonus;
+        if (parseInt(totalCredits) !== expectedTotalCredits) {
+          console.error(`Credit amount mismatch: expected ${expectedTotalCredits}, got ${totalCredits}`);
+          return res.status(400).json({ error: 'Credit amount validation failed' });
+        }
+
+        // Check if we already processed this payment
+        const existingTransaction = await storage.getUserCreditTransactions(userId, 100);
+        const alreadyProcessed = existingTransaction.find(
+          t => t.reason?.includes(paymentIntent.id)
+        );
+
+        if (alreadyProcessed) {
+          console.log('Payment already processed:', paymentIntent.id);
+          return res.json({ received: true, message: 'Payment already processed' });
+        }
+
+        // Add credits to user account
+        const creditAmount = parseInt(totalCredits);
+        await storage.updateUserCredits(userId, creditAmount);
+        
+        // Record the transaction
+        await storage.recordCreditTransaction({
+          userId,
+          type: 'purchase',
+          amount: creditAmount,
+          reason: `Purchased ${credits} credits${bonus ? ` + ${bonus} bonus` : ''} for $${(paymentIntent.amount / 100).toFixed(2)} (${paymentIntent.id}) - Webhook`,
+        });
+
+        console.log(`Added ${creditAmount} credits to user ${userId} via webhook`);
+      }
+
+      // Return success response to Stripe
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error('Error processing webhook:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  });
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -330,8 +440,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Credit purchase route
-  app.post('/api/credits/purchase', isAuthenticated, async (req: any, res) => {
+  // Credit purchase routes with Stripe integration
+  
+  // Create payment intent for credit purchase
+  app.post('/api/credits/create-payment-intent', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { packageId } = req.body;
@@ -340,47 +452,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Package ID is required" });
       }
 
-      // Define credit packages (same as frontend)
-      const creditPackages = {
-        starter: { credits: 100, price: 5 },
-        popular: { credits: 500, price: 20, bonus: 50 },
-        pro: { credits: 1000, price: 35, bonus: 200 },
-        premium: { credits: 2500, price: 75, bonus: 750 }
-      };
-
-      const selectedPackage = creditPackages[packageId as keyof typeof creditPackages];
+      // Validate package ID against server-side definition
+      const selectedPackage = CREDIT_PACKAGES[packageId as PackageId];
       if (!selectedPackage) {
         return res.status(400).json({ message: "Invalid package ID" });
+      }
+
+      // Get user for customer info
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
 
       // Calculate total credits including bonus
       const bonus = 'bonus' in selectedPackage ? selectedPackage.bonus : 0;
       const totalCredits = selectedPackage.credits + bonus;
 
-      // In a real application, this would integrate with a payment processor like Stripe
-      // For now, we'll simulate a successful purchase
+      // Create Stripe Payment Intent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(selectedPackage.price * 100), // Convert to cents
+        currency: "usd",
+        metadata: {
+          userId,
+          packageId,
+          credits: selectedPackage.credits.toString(),
+          bonus: bonus.toString(),
+          totalCredits: totalCredits.toString()
+        },
+        description: `Credits purchase: ${selectedPackage.credits} credits${bonus > 0 ? ` + ${bonus} bonus` : ''}`
+      });
+
+      res.json({ 
+        clientSecret: paymentIntent.client_secret,
+        package: selectedPackage,
+        totalCredits
+      });
+    } catch (error: any) {
+      console.error("Error creating payment intent:", error);
+      res.status(500).json({ message: error.message || "Failed to create payment intent" });
+    }
+  });
+
+  // Complete credit purchase after successful payment
+  app.post('/api/credits/purchase-complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { paymentIntentId } = req.body;
+
+      if (!paymentIntentId) {
+        return res.status(400).json({ message: "Payment intent ID is required" });
+      }
+
+      // Retrieve the payment intent to verify it was successful
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({ message: "Payment not completed" });
+      }
+
+      // Verify the payment belongs to the current user
+      if (paymentIntent.metadata.userId !== userId) {
+        return res.status(403).json({ message: "Payment verification failed" });
+      }
+
+      // Extract and validate metadata
+      const { packageId, credits, bonus, totalCredits } = paymentIntent.metadata;
       
+      if (!packageId || !totalCredits) {
+        return res.status(400).json({ message: "Invalid payment intent metadata" });
+      }
+
+      // Validate package pricing against server-side definition
+      const serverPackage = CREDIT_PACKAGES[packageId as PackageId];
+      if (!serverPackage) {
+        return res.status(400).json({ message: "Invalid package in payment intent" });
+      }
+
+      // Validate payment amount matches server-side pricing
+      const expectedAmount = Math.round(serverPackage.price * 100);
+      if (paymentIntent.amount !== expectedAmount) {
+        return res.status(400).json({ message: "Payment amount validation failed" });
+      }
+
+      // Validate credit amounts match server-side calculation
+      const expectedBonus = 'bonus' in serverPackage ? serverPackage.bonus || 0 : 0;
+      const expectedTotalCredits = serverPackage.credits + expectedBonus;
+      if (parseInt(totalCredits) !== expectedTotalCredits) {
+        return res.status(400).json({ message: "Credit amount validation failed" });
+      }
+
+      // Check if we already processed this payment
+      const existingTransaction = await storage.getUserCreditTransactions(userId, 100);
+      const alreadyProcessed = existingTransaction.find(
+        t => t.reason?.includes(paymentIntentId)
+      );
+
+      if (alreadyProcessed) {
+        return res.status(400).json({ message: "Payment already processed" });
+      }
+
+      // Use server-validated values instead of trusting metadata
+      const creditsToAdd = expectedTotalCredits;
+
       // Add credits to user account
-      await storage.updateUserCredits(userId, totalCredits);
+      await storage.updateUserCredits(userId, creditsToAdd);
       
       // Record the transaction
       await storage.recordCreditTransaction({
         userId,
         type: 'purchase',
-        amount: totalCredits,
-        reason: `Purchased ${selectedPackage.credits} credits${'bonus' in selectedPackage && selectedPackage.bonus ? ` + ${selectedPackage.bonus} bonus` : ''} for $${selectedPackage.price}`,
+        amount: creditsToAdd,
+        reason: `Purchased ${serverPackage.credits} credits${expectedBonus > 0 ? ` + ${expectedBonus} bonus` : ''} for $${(paymentIntent.amount / 100).toFixed(2)} (${paymentIntentId})`,
       });
 
       res.json({
         success: true,
-        credits: totalCredits,
-        package: selectedPackage,
+        credits: creditsToAdd,
+        package: {
+          id: packageId,
+          credits: serverPackage.credits,
+          bonus: expectedBonus,
+          price: paymentIntent.amount / 100
+        },
         message: "Credits purchased successfully"
       });
     } catch (error: any) {
-      console.error("Error purchasing credits:", error);
-      res.status(500).json({ message: error.message || "Failed to purchase credits" });
+      console.error("Error completing purchase:", error);
+      res.status(500).json({ message: error.message || "Failed to complete purchase" });
     }
+  });
+
+  // Legacy purchase route (deprecated - use create-payment-intent instead)
+  app.post('/api/credits/purchase', isAuthenticated, async (req: any, res) => {
+    res.status(410).json({ 
+      message: "This endpoint is deprecated. Use /api/credits/create-payment-intent instead.",
+      deprecated: true
+    });
   });
 
   // Stats routes

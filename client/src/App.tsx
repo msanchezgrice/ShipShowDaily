@@ -10,13 +10,32 @@ import SubmitDemo from "@/pages/submit-demo";
 import Dashboard from "@/pages/dashboard";
 import Settings from "@/pages/settings";
 import Feed from "@/pages/feed";
+import PaymentComplete from "@/pages/payment-complete";
 import { useAuth } from "@/hooks/useAuth";
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+
+// Load Stripe with error handling
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY 
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+  : null;
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
   return (
     <Switch>
+      {/* Payment complete route - accessible to all users */}
+      <Route path="/payment-complete">
+        {stripePromise ? (
+          <Elements stripe={stripePromise}>
+            <PaymentComplete />
+          </Elements>
+        ) : (
+          <PaymentComplete />
+        )}
+      </Route>
+      
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
