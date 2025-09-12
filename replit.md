@@ -21,6 +21,14 @@ The frontend is built as a React Single Page Application (SPA) using:
 
 The UI follows a modern dark theme design with a comprehensive component library including cards, dialogs, navigation menus, and form controls.
 
+#### TikTok-Style Feed View
+- **Vertical scroll-snap layout** with full-screen video display
+- **IntersectionObserver** for automatic play/pause based on visibility (75% threshold)
+- **Smart video preloading** for smooth transitions between videos
+- **Auto-advance** to next video when current video ends
+- **Keyboard navigation** with arrow keys and mute toggle
+- **Credit earning system** integrated with 30-second viewing sessions
+
 ### Backend Architecture
 The backend uses a Node.js/Express server with:
 - **Express.js** as the web framework

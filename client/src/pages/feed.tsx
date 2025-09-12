@@ -53,6 +53,7 @@ interface FeedVideo {
 // Single video component to encapsulate viewing logic
 function FeedVideoItem({ 
   item, 
+  currentIndex,
   index, 
   isActive,
   isMuted,
@@ -60,6 +61,7 @@ function FeedVideoItem({
   onNavigateNext
 }: {
   item: FeedVideo;
+  currentIndex: number;
   index: number;
   isActive: boolean;
   isMuted: boolean;
@@ -75,10 +77,11 @@ function FeedVideoItem({
     progress, 
     creditEarned, 
     startSession,
+    reset,
     isStarting
   } = useViewingSession({
     videoId: item.video.id,
-    enabled: isActive
+    enabled: isActive && isPlaying
   });
 
   // Favorite video mutation
@@ -108,12 +111,28 @@ function FeedVideoItem({
   useEffect(() => {
     if (!videoRef.current) return;
 
+    const playVideo = async () => {
+      try {
+        await videoRef.current!.play();
+        setIsPlaying(true);
+      } catch (error) {
+        setIsPlaying(false);
+        // Try playing with muted attribute set
+        if (videoRef.current) {
+          videoRef.current.muted = true;
+          try {
+            await videoRef.current.play();
+            setIsPlaying(true);
+          } catch (secondError) {
+            console.error(`Failed to play video even when muted:`, secondError);
+          }
+        }
+      }
+    };
+
     if (isActive) {
       // Start playing when video becomes active
-      videoRef.current.play().catch(() => {
-        // Handle autoplay restrictions
-        setIsPlaying(false);
-      });
+      playVideo();
       
       // Start viewing session if not already started
       if (!hasInitialized && !isStarting && !creditEarned) {
@@ -124,28 +143,43 @@ function FeedVideoItem({
       // Pause when video is not active
       videoRef.current.pause();
       setIsPlaying(false);
+      // Reset session when video becomes inactive
+      if (hasInitialized) {
+        reset();
+        setHasInitialized(false);
+      }
     }
-  }, [isActive, hasInitialized, startSession, isStarting, creditEarned]);
+  }, [isActive, hasInitialized, startSession, reset, isStarting, creditEarned]);
 
   // Preload video when it's close to being viewed
   useEffect(() => {
     if (!videoRef.current) return;
     
-    // Preload if this is the next video
-    if (index === 1) {
+    // Calculate relative position from current index
+    const relativeIndex = index - currentIndex;
+    
+    // Preload next video
+    if (relativeIndex === 1) {
       videoRef.current.preload = "auto";
-    } else if (Math.abs(index) <= 2) {
+    } else if (Math.abs(relativeIndex) <= 2) {
       // Keep metadata for nearby videos
       videoRef.current.preload = "metadata";
     } else {
       // Don't preload far away videos
       videoRef.current.preload = "none";
     }
-  }, [index]);
+  }, [index, currentIndex]);
 
   const handleTryProduct = () => {
-    demoClickMutation.mutate();
-    window.open(item.video.productUrl, "_blank");
+    // Show confirmation for external links
+    const shouldOpen = window.confirm(
+      `You're about to open an external link:\n${item.video.productUrl}\n\nContinue?`
+    );
+    
+    if (shouldOpen) {
+      demoClickMutation.mutate();
+      window.open(item.video.productUrl, "_blank", "noopener,noreferrer");
+    }
   };
 
   const togglePlayPause = () => {
@@ -194,6 +228,7 @@ function FeedVideoItem({
         className="absolute inset-0 w-full h-full object-contain cursor-pointer"
         muted={isMuted}
         playsInline
+        autoPlay={isActive}
         loop={false}
         data-testid={`video-${item.video.id}`}
         onClick={togglePlayPause}
@@ -208,7 +243,7 @@ function FeedVideoItem({
           className="absolute inset-0 flex items-center justify-center pointer-events-none"
         >
           <div className="bg-black/50 rounded-full p-4">
-            <Pause className="text-white h-12 w-12" />
+            <Play className="text-white h-12 w-12" />
           </div>
         </div>
       )}
@@ -314,9 +349,9 @@ export default function Feed() {
   
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(() => {
-    // Load mute state from localStorage
+    // Load mute state from localStorage, default to true for autoplay
     const savedMute = localStorage.getItem('feedMuted');
-    return savedMute === 'true';
+    return savedMute !== null ? savedMute === 'true' : true;
   });
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -487,6 +522,7 @@ export default function Feed() {
         >
           <FeedVideoItem
             item={item}
+            currentIndex={currentIndex}
             index={index}
             isActive={index === currentIndex}
             isMuted={isMuted}

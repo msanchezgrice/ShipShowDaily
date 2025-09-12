@@ -24,7 +24,10 @@ export function useViewingSession({ videoId, onCreditEarned, enabled = true }: U
     },
     onSuccess: (data) => {
       setSessionId(data.sessionId);
-      startProgressTracking();
+      // Only start tracking if enabled
+      if (enabled) {
+        startProgressTracking();
+      }
     },
   });
 
@@ -49,9 +52,13 @@ export function useViewingSession({ videoId, onCreditEarned, enabled = true }: U
   });
 
   const startProgressTracking = useCallback(() => {
+    // Clear existing interval
     if (progressInterval.current) {
       clearInterval(progressInterval.current);
     }
+
+    // Only start if enabled
+    if (!enabled) return;
 
     progressInterval.current = setInterval(() => {
       setProgress((prev) => {
@@ -60,12 +67,24 @@ export function useViewingSession({ videoId, onCreditEarned, enabled = true }: U
         // Auto-complete at 30 seconds
         if (newProgress >= 100 && sessionId && !creditEarned) {
           completeSessionMutation.mutate(sessionId);
+          // Clear interval after completion
+          if (progressInterval.current) {
+            clearInterval(progressInterval.current);
+            progressInterval.current = null;
+          }
         }
         
         return newProgress;
       });
     }, 1000);
-  }, [sessionId, creditEarned]);
+  }, [sessionId, creditEarned, enabled]);
+
+  const stopProgressTracking = useCallback(() => {
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+      progressInterval.current = null;
+    }
+  }, []);
 
   const startSession = useCallback(() => {
     if (!sessionId && !creditEarned && enabled) {
@@ -80,22 +99,29 @@ export function useViewingSession({ videoId, onCreditEarned, enabled = true }: U
   }, [sessionId, creditEarned]);
 
   const reset = useCallback(() => {
-    if (progressInterval.current) {
-      clearInterval(progressInterval.current);
-    }
+    stopProgressTracking();
     setSessionId(null);
     setProgress(0);
     setCreditEarned(false);
-  }, []);
+  }, [stopProgressTracking]);
+
+  // Handle enabled state changes
+  useEffect(() => {
+    if (enabled && sessionId && !creditEarned && !progressInterval.current) {
+      // Resume progress tracking when enabled
+      startProgressTracking();
+    } else if (!enabled && progressInterval.current) {
+      // Pause progress tracking when disabled
+      stopProgressTracking();
+    }
+  }, [enabled, sessionId, creditEarned, startProgressTracking, stopProgressTracking]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
+      stopProgressTracking();
     };
-  }, []);
+  }, [stopProgressTracking]);
 
   return {
     sessionId,
