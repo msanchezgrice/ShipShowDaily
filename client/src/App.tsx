@@ -72,14 +72,10 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/feed" component={Feed} />
 
-        {/* Authenticated-only routes */}
-        {isAuthenticated && (
-          <>
-            <Route path="/submit-demo" component={SubmitDemo} />
-            <Route path="/dashboard" component={Dashboard} />
-            <Route path="/settings" component={Settings} />
-          </>
-        )}
+        {/* Routes render regardless; components handle auth gating */}
+        <Route path="/submit-demo" component={SubmitDemo} />
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </>
