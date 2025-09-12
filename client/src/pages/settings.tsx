@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Settings as SettingsIcon, User, CreditCard, LogOut, Key } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import { SignedIn, SignedOut, SignInButton, useClerk } from "@clerk/clerk-react";
 
 const profileSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(50),
@@ -34,6 +35,7 @@ type PasswordFormData = z.infer<typeof passwordSchema>;
 export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { signOut } = useClerk();
 
   // Fetch current user data
   const { data: user } = useQuery<any>({
@@ -123,11 +125,7 @@ export default function Settings() {
   // Sign out mutation
   const signOutMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-      if (!response.ok) throw new Error("Failed to sign out");
-      return response.json();
+      await signOut();
     },
     onSuccess: () => {
       toast({
@@ -166,6 +164,13 @@ export default function Settings() {
       <Navigation />
       
       <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <SignedOut>
+          <div className="text-center py-24">
+            <h1 className="text-2xl font-semibold mb-4">Sign in to manage your settings</h1>
+            <SignInButton mode="modal" afterSignInUrl="/settings" />
+          </div>
+        </SignedOut>
+        <SignedIn>
         <div className="flex items-center mb-8">
           <SettingsIcon className="text-primary mr-3 h-8 w-8" />
           <div>
@@ -382,6 +387,7 @@ export default function Settings() {
             </CardContent>
           </Card>
         </div>
+        </SignedIn>
       </div>
     </div>
   );

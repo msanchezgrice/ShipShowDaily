@@ -1,5 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useClerk } from "@clerk/clerk-react";
+import { useClerk, SignedIn, SignedOut, SignInButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -61,6 +61,12 @@ export default function Navigation() {
           </div>
           
           <div className="flex items-center space-x-4">
+            <SignedOut>
+              <SignInButton mode="modal" afterSignInUrl="/dashboard">
+                <Button className="bg-primary text-primary-foreground">Sign In</Button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
             {/* User Credits Display with Tooltip */}
             <TooltipProvider>
               <Tooltip>
@@ -126,6 +132,7 @@ export default function Navigation() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </SignedIn>
           </div>
         </div>
       </div>

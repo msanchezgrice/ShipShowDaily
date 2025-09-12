@@ -30,6 +30,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  const enableFileStorage = process.env.ENABLE_FILE_STORAGE === 'true';
+
   // Stripe webhook handler (must be before auth middleware)
   app.post('/api/stripe/webhook', async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -632,12 +634,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
+    if (!enableFileStorage) {
+      return res.status(503).json({ error: "File uploads are disabled in this environment" });
+    }
     const objectStorageService = new ObjectStorageService();
     const uploadURL = await objectStorageService.getObjectEntityUploadURL();
     res.json({ uploadURL });
   });
 
   app.put("/api/videos/video-file", isAuthenticated, async (req: any, res) => {
+    if (!enableFileStorage) {
+      return res.status(503).json({ error: "File storage is disabled in this environment" });
+    }
     if (!req.body.videoURL) {
       return res.status(400).json({ error: "videoURL is required" });
     }
