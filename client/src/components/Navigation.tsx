@@ -21,7 +21,7 @@ import { useLocation } from "wouter";
 export default function Navigation() {
   const { user } = useAuth();
   const { signOut } = useClerk();
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
 
   const handleSignOut = () => {
     signOut();
@@ -50,7 +50,7 @@ export default function Navigation() {
                   key={item.href}
                   variant={item.active ? "default" : "ghost"}
                   className={item.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}
-                  onClick={() => window.location.href = item.href}
+                  onClick={() => navigate(item.href)}
                   data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
                 >
                   <item.icon className="mr-2 h-4 w-4" />
@@ -67,7 +67,7 @@ export default function Navigation() {
                 <TooltipTrigger asChild>
                   <div 
                     className="hidden sm:flex items-center bg-card rounded-lg px-3 py-2 border border-border cursor-pointer hover:bg-card/80 transition-colors"
-                    onClick={() => window.location.href = '/dashboard'}
+                    onClick={() => navigate('/dashboard')}
                     data-testid="credits-display"
                   >
                     <Coins className="text-accent mr-2 h-4 w-4" />
@@ -111,7 +111,7 @@ export default function Navigation() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem 
-                  onClick={() => window.location.href = '/settings'}
+                  onClick={() => navigate('/settings')}
                   data-testid="button-settings"
                 >
                   <Settings className="mr-2 h-4 w-4" />

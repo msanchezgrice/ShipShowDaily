@@ -68,12 +68,13 @@ function Router() {
           )}
         </Route>
         
-        {isLoading || !isAuthenticated ? (
-          <Route path="/" component={Landing} />
-        ) : (
+        {/* Public routes */}
+        <Route path="/" component={Home} />
+        <Route path="/feed" component={Feed} />
+
+        {/* Authenticated-only routes */}
+        {isAuthenticated && (
           <>
-            <Route path="/" component={Home} />
-            <Route path="/feed" component={Feed} />
             <Route path="/submit-demo" component={SubmitDemo} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/settings" component={Settings} />

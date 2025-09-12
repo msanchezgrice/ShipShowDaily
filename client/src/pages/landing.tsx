@@ -1,9 +1,11 @@
 import { SignInButton } from "@clerk/clerk-react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Rocket, Play, Upload, Eye, Trophy, Users, Coins } from "lucide-react";
 
 export default function Landing() {
+  const [, navigate] = useLocation();
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
@@ -14,7 +16,7 @@ export default function Landing() {
               <Rocket className="text-primary text-2xl mr-3" />
               <span className="text-xl font-bold text-foreground">ShipShow.io</span>
             </div>
-            <SignInButton mode="modal">
+            <SignInButton mode="modal" afterSignInUrl="/">
               <Button className="bg-primary text-primary-foreground" data-testid="button-sign-in">
                 Sign In
               </Button>
@@ -36,13 +38,13 @@ export default function Landing() {
             Discover amazing products while building your audience.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <SignInButton mode="modal">
+            <SignInButton mode="modal" afterSignInUrl="/">
               <Button className="bg-primary text-primary-foreground px-8 py-3" data-testid="button-start-watching">
                 <Play className="mr-2 h-4 w-4" />
                 Start Watching Demos
               </Button>
             </SignInButton>
-            <SignInButton mode="modal">
+            <SignInButton mode="modal" afterSignInUrl="/submit-demo">
               <Button variant="outline" className="bg-accent text-accent-foreground px-8 py-3" data-testid="button-submit-demo">
                 <Upload className="mr-2 h-4 w-4" />
                 Submit Your Demo
@@ -112,7 +114,7 @@ export default function Landing() {
 
         {/* CTA */}
         <div className="text-center">
-          <SignInButton mode="modal">
+          <SignInButton mode="modal" afterSignInUrl="/">
             <Button size="lg" className="bg-primary text-primary-foreground px-12 py-4 text-lg" data-testid="button-get-started">
               Get Started Now
             </Button>

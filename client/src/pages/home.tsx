@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import Navigation from "@/components/Navigation";
+import { useLocation } from "wouter";
 import VideoCard from "@/components/VideoCard";
 import Leaderboard from "@/components/Leaderboard";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -10,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Eye, Video, Coins, Users, Clock, TrendingUp, BarChart3, Hash, X } from "lucide-react";
 
 export default function Home() {
+  const [, navigate] = useLocation();
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [resetTimer, setResetTimer] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -252,7 +254,7 @@ export default function Home() {
                 <div className="space-y-3">
                   <Button 
                     className="w-full bg-primary text-primary-foreground" 
-                    onClick={() => window.location.href = '/dashboard'}
+                    onClick={() => navigate('/dashboard')}
                     data-testid="button-dashboard"
                   >
                     <BarChart3 className="mr-2 h-4 w-4" />
@@ -262,7 +264,7 @@ export default function Home() {
                   <Button 
                     variant="outline" 
                     className="w-full" 
-                    onClick={() => window.location.href = '/submit'}
+                    onClick={() => navigate('/submit-demo')}
                     data-testid="button-submit"
                   >
                     <Video className="mr-2 h-4 w-4" />
