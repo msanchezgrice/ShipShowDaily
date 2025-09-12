@@ -9,7 +9,8 @@ import {
   BarChart3, 
   Upload, 
   Coins,
-  User
+  User,
+  Film
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -20,6 +21,7 @@ export default function Navigation() {
 
   const navItems = [
     { href: "/", label: "Leaderboard", icon: Trophy, active: location === "/" },
+    { href: "/feed", label: "Feed", icon: Film, active: location === "/feed" },
     { href: "/dashboard", label: "Dashboard", icon: BarChart3, active: location === "/dashboard" },
     { href: "/submit-demo", label: "Submit Demo", icon: Upload, active: location === "/submit-demo" },
   ];

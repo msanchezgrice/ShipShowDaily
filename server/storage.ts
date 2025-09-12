@@ -587,7 +587,7 @@ export class DatabaseStorage implements IStorage {
 
     // Calculate elapsed time in seconds
     const now = new Date();
-    const startTime = new Date(session.startedAt);
+    const startTime = session.startedAt ? new Date(session.startedAt) : new Date();
     const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
 
     // Check if minimum watch time has been met (30 seconds)

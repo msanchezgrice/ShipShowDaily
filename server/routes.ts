@@ -151,7 +151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         creditAwarded: result.creditAwarded,
-        watchDuration: result.session.completedAt ? Math.floor((new Date(result.session.completedAt).getTime() - new Date(result.session.startedAt).getTime()) / 1000) : 0,
+        watchDuration: result.session.completedAt && result.session.startedAt ? Math.floor((new Date(result.session.completedAt).getTime() - new Date(result.session.startedAt).getTime()) / 1000) : 0,
         message: result.creditAwarded ? "Credit earned!" : "Session completed, minimum watch time not met"
       });
     } catch (error: any) {
@@ -354,7 +354,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate total credits including bonus
-      const totalCredits = selectedPackage.credits + (selectedPackage.bonus || 0);
+      const bonus = 'bonus' in selectedPackage ? selectedPackage.bonus : 0;
+      const totalCredits = selectedPackage.credits + bonus;
 
       // In a real application, this would integrate with a payment processor like Stripe
       // For now, we'll simulate a successful purchase
@@ -367,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         type: 'purchase',
         amount: totalCredits,
-        reason: `Purchased ${selectedPackage.credits} credits${selectedPackage.bonus ? ` + ${selectedPackage.bonus} bonus` : ''} for $${selectedPackage.price}`,
+        reason: `Purchased ${selectedPackage.credits} credits${'bonus' in selectedPackage && selectedPackage.bonus ? ` + ${selectedPackage.bonus} bonus` : ''} for $${selectedPackage.price}`,
       });
 
       res.json({
