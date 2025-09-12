@@ -20,7 +20,8 @@ import {
   Coins,
   Award,
   Play,
-  Pause
+  Pause,
+  X
 } from "lucide-react";
 
 interface FeedVideo {
@@ -510,10 +511,19 @@ export default function Feed() {
   return (
     <div 
       ref={containerRef}
-      className="h-screen overflow-y-scroll snap-y snap-mandatory"
+      className="h-screen overflow-y-scroll snap-y snap-mandatory relative"
       style={{ scrollBehavior: "smooth" }}
       data-testid="feed-container"
     >
+      {/* Exit Button */}
+      <button
+        onClick={() => window.location.href = '/'}
+        className="fixed top-4 right-4 z-50 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-colors backdrop-blur-sm"
+        data-testid="button-exit-feed"
+        aria-label="Exit to Leaderboard"
+      >
+        <X className="h-6 w-6" />
+      </button>
       {feedVideos.map((item, index) => (
         <div
           key={item.video.id}
