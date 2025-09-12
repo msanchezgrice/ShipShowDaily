@@ -1,8 +1,10 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useClerk } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { 
   Rocket, 
   Trophy, 
@@ -10,13 +12,20 @@ import {
   Upload, 
   Coins,
   User,
-  Film
+  Film,
+  LogOut,
+  Settings
 } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Navigation() {
   const { user } = useAuth();
+  const { signOut } = useClerk();
   const [location] = useLocation();
+
+  const handleSignOut = () => {
+    signOut();
+  };
 
 
   const navItems = [
@@ -80,24 +89,43 @@ export default function Navigation() {
               </Tooltip>
             </TooltipProvider>
             
-            {/* User Profile - Clickable to Settings */}
-            <div 
-              className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => window.location.href = '/settings'}
-              data-testid="user-profile"
-            >
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.profileImageUrl} />
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  <User className="h-4 w-4" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="hidden sm:flex flex-col">
-                <span className="text-foreground font-medium text-sm" data-testid="text-user-name">
-                  {user?.firstName || user?.email || "User"}
-                </span>
-              </div>
-            </div>
+            {/* User Profile with Dropdown Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div 
+                  className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+                  data-testid="user-profile"
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.profileImageUrl} />
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="hidden sm:flex flex-col">
+                    <span className="text-foreground font-medium text-sm" data-testid="text-user-name">
+                      {user?.firstName || user?.email || "User"}
+                    </span>
+                  </div>
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem 
+                  onClick={() => window.location.href = '/settings'}
+                  data-testid="button-settings"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={handleSignOut}
+                  data-testid="button-sign-out"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

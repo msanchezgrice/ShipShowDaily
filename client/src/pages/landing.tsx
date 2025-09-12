@@ -1,12 +1,9 @@
+import { SignInButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Rocket, Play, Upload, Eye, Trophy, Users, Coins } from "lucide-react";
 
 export default function Landing() {
-  const handleLogin = () => {
-    window.location.href = "/api/login";
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
@@ -17,9 +14,11 @@ export default function Landing() {
               <Rocket className="text-primary text-2xl mr-3" />
               <span className="text-xl font-bold text-foreground">ShipShow.io</span>
             </div>
-            <Button onClick={handleLogin} className="bg-primary text-primary-foreground">
-              Sign In
-            </Button>
+            <SignInButton mode="modal">
+              <Button className="bg-primary text-primary-foreground" data-testid="button-sign-in">
+                Sign In
+              </Button>
+            </SignInButton>
           </div>
         </div>
       </nav>
@@ -37,14 +36,18 @@ export default function Landing() {
             Discover amazing products while building your audience.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button onClick={handleLogin} className="bg-primary text-primary-foreground px-8 py-3">
-              <Play className="mr-2 h-4 w-4" />
-              Start Watching Demos
-            </Button>
-            <Button onClick={handleLogin} variant="outline" className="bg-accent text-accent-foreground px-8 py-3">
-              <Upload className="mr-2 h-4 w-4" />
-              Submit Your Demo
-            </Button>
+            <SignInButton mode="modal">
+              <Button className="bg-primary text-primary-foreground px-8 py-3" data-testid="button-start-watching">
+                <Play className="mr-2 h-4 w-4" />
+                Start Watching Demos
+              </Button>
+            </SignInButton>
+            <SignInButton mode="modal">
+              <Button variant="outline" className="bg-accent text-accent-foreground px-8 py-3" data-testid="button-submit-demo">
+                <Upload className="mr-2 h-4 w-4" />
+                Submit Your Demo
+              </Button>
+            </SignInButton>
           </div>
         </div>
 
@@ -109,9 +112,11 @@ export default function Landing() {
 
         {/* CTA */}
         <div className="text-center">
-          <Button onClick={handleLogin} size="lg" className="bg-primary text-primary-foreground px-12 py-4 text-lg">
-            Get Started Now
-          </Button>
+          <SignInButton mode="modal">
+            <Button size="lg" className="bg-primary text-primary-foreground px-12 py-4 text-lg" data-testid="button-get-started">
+              Get Started Now
+            </Button>
+          </SignInButton>
         </div>
       </div>
     </div>

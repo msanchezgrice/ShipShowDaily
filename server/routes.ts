@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./clerkAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { insertVideoSchema, insertVideoWithTagsSchema, insertVideoViewSchema, insertCreditTransactionSchema, insertVideoFavoriteSchema, insertDemoLinkClickSchema } from "@shared/schema";
@@ -424,21 +424,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/logout', async (req, res) => {
-    try {
-      req.session.destroy((err: any) => {
-        if (err) {
-          console.error("Error destroying session:", err);
-          return res.status(500).json({ message: "Failed to sign out" });
-        }
-        res.clearCookie('connect.sid');
-        res.json({ success: true, message: "Signed out successfully" });
-      });
-    } catch (error) {
-      console.error("Error signing out:", error);
-      res.status(500).json({ message: "Failed to sign out" });
-    }
-  });
 
   // Credit purchase routes with Stripe integration
   
