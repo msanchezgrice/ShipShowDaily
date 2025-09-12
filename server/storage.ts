@@ -108,6 +108,22 @@ export interface IStorage {
   // Demo link clicks operations
   recordDemoLinkClick(click: InsertDemoLinkClick): Promise<DemoLinkClick>;
   getDemoLinkClickCount(videoId: string): Promise<number>;
+
+  // Feed operations
+  getFeedVideos(params: {
+    limit?: number;
+    offset?: number;
+    tagFilter?: string;
+    userId?: string | null;
+  }): Promise<Array<{
+    video: Video;
+    creator: User;
+    tags: Tag[];
+    todayViews: number;
+    totalViews: number;
+    isFavorited: boolean;
+    boostAmount: number;
+  }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -905,6 +921,81 @@ export class DatabaseStorage implements IStorage {
       );
 
     return result?.count || 0;
+  }
+
+  // Feed operations
+  async getFeedVideos(params: {
+    limit?: number;
+    offset?: number;
+    tagFilter?: string;
+    userId?: string | null;
+  }): Promise<Array<{
+    video: Video;
+    creator: User;
+    tags: Tag[];
+    todayViews: number;
+    totalViews: number;
+    isFavorited: boolean;
+    boostAmount: number;
+  }>> {
+    const { limit = 10, offset = 0, tagFilter, userId } = params;
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Build the base query
+    let query = db
+      .select({
+        video: videos,
+        creator: users,
+        todayViews: sql<number>`COALESCE(${dailyStats.views}, 0)`,
+        boostAmount: sql<number>`COALESCE(${dailyStats.creditsSpent}, 0)`,
+      })
+      .from(videos)
+      .innerJoin(users, eq(videos.creatorId, users.id))
+      .leftJoin(
+        dailyStats,
+        and(
+          eq(videos.id, dailyStats.videoId),
+          eq(dailyStats.date, today)
+        )
+      )
+      .where(eq(videos.isActive, true));
+
+    // Add tag filtering if specified
+    if (tagFilter) {
+      query = query
+        .innerJoin(videoTags, eq(videos.id, videoTags.videoId))
+        .innerJoin(tags, and(eq(videoTags.tagId, tags.id), eq(tags.name, tagFilter)));
+    }
+
+    // Order by boost amount (trending), then today's views, then upload time
+    const result = await query
+      .orderBy(
+        desc(sql`COALESCE(${dailyStats.creditsSpent}, 0)`),
+        desc(sql`COALESCE(${dailyStats.views}, 0)`),
+        desc(videos.createdAt)
+      )
+      .limit(limit)
+      .offset(offset);
+
+    // Get tags and favorite status for each video
+    const videosWithFullData = await Promise.all(
+      result.map(async row => {
+        const videoTags = await this.getVideoTags(row.video.id);
+        const isFavorited = userId ? await this.isVideoFavorited(userId, row.video.id) : false;
+        
+        return {
+          video: row.video,
+          creator: row.creator,
+          tags: videoTags,
+          todayViews: row.todayViews,
+          totalViews: row.video.totalViews,
+          isFavorited,
+          boostAmount: row.boostAmount,
+        };
+      })
+    );
+
+    return videosWithFullData;
   }
 }
 

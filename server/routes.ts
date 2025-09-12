@@ -79,6 +79,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Feed route - TikTok-style paginated video feed
+  app.get('/api/feed', async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const tagFilter = req.query.tag as string;
+      
+      // Get the authenticated user ID if available
+      const userId = req.user?.claims?.sub || null;
+
+      const feedVideos = await storage.getFeedVideos({
+        limit,
+        offset,
+        tagFilter,
+        userId,
+      });
+
+      res.json(feedVideos);
+    } catch (error) {
+      console.error("Error fetching feed:", error);
+      res.status(500).json({ message: "Failed to fetch feed" });
+    }
+  });
+
   // Tag routes
   app.get('/api/tags', async (req, res) => {
     try {
