@@ -25,12 +25,16 @@ export default function Home() {
         params.append('tag', selectedTag);
       }
       const url = `/api/videos/top${params.toString() ? '?' + params.toString() : ''}`;
-      return fetch(url).then(res => res.json());
+      return fetch(url).then(async res => {
+        if (!res.ok) return [];
+        return res.json();
+      });
     },
   });
 
   const { data: allTags = [] } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ["/api/tags"],
+    queryFn: () => fetch('/api/tags').then(async r => (r.ok ? r.json() : [])),
   });
 
   const { data: stats } = useQuery<{
@@ -40,6 +44,7 @@ export default function Home() {
     activeUsers: number;
   }>({
     queryKey: ["/api/stats/today"],
+    queryFn: () => fetch('/api/stats/today').then(async r => (r.ok ? r.json() : { totalViews:0, demosSubmitted:0, creditsEarned:0, activeUsers:0 })),
   });
 
   const { data: leaderboard = [] } = useQuery<any[]>({
@@ -50,7 +55,7 @@ export default function Home() {
         params.append('sortBy', leaderboardSortBy);
       }
       const url = `/api/leaderboard${params.toString() ? '?' + params.toString() : ''}`;
-      return fetch(url).then(res => res.json());
+      return fetch(url).then(async res => (res.ok ? res.json() : []));
     },
   });
 
