@@ -1,11 +1,9 @@
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
 import * as schema from "../../shared/schema";
 
-// Configure WebSocket for serverless environment
-neonConfig.webSocketConstructor = ws;
-neonConfig.fetchConnectionCache = true;
+// Use built-in WebSocket in Vercel serverless environment
+// No need to import ws module
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL must be set in environment variables");
