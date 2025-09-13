@@ -29,10 +29,10 @@ export default function Navigation() {
 
 
   const navItems = [
-    { href: "/", label: "Leaderboard", icon: Trophy, active: location === "/" },
-    { href: "/feed", label: "Feed", icon: Film, active: location === "/feed" },
-    { href: "/dashboard", label: "Dashboard", icon: BarChart3, active: location === "/dashboard" },
-    { href: "/submit-demo", label: "Submit Demo", icon: Upload, active: location === "/submit-demo" },
+    { href: "/", label: "Leaderboard", icon: Trophy, active: location === "/", requiresAuth: false },
+    { href: "/feed", label: "Feed", icon: Film, active: location === "/feed", requiresAuth: false },
+    { href: "/dashboard", label: "Dashboard", icon: BarChart3, active: location === "/dashboard", requiresAuth: true },
+    { href: "/submit-demo", label: "Submit Demo", icon: Upload, active: location === "/submit-demo", requiresAuth: true },
   ];
 
   return (
@@ -45,18 +45,36 @@ export default function Navigation() {
               <span className="text-xl font-bold text-foreground">ShipShow.io</span>
             </div>
             <div className="hidden md:flex items-center space-x-1 ml-8">
-              {navItems.map((item) => (
-                <Button
-                  key={item.href}
-                  variant={item.active ? "default" : "ghost"}
-                  className={item.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}
-                  onClick={() => navigate(item.href)}
-                  data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
-                >
-                  <item.icon className="mr-2 h-4 w-4" />
-                  {item.label}
-                </Button>
-              ))}
+              {navItems.map((item) => {
+                // Show all items for non-auth routes, only show auth routes when signed in
+                if (item.requiresAuth) {
+                  return (
+                    <SignedIn key={item.href}>
+                      <Button
+                        variant={item.active ? "default" : "ghost"}
+                        className={item.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}
+                        onClick={() => navigate(item.href)}
+                        data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
+                      >
+                        <item.icon className="mr-2 h-4 w-4" />
+                        {item.label}
+                      </Button>
+                    </SignedIn>
+                  );
+                }
+                return (
+                  <Button
+                    key={item.href}
+                    variant={item.active ? "default" : "ghost"}
+                    className={item.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}
+                    onClick={() => navigate(item.href)}
+                    data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
+                  >
+                    <item.icon className="mr-2 h-4 w-4" />
+                    {item.label}
+                  </Button>
+                );
+              })}
             </div>
           </div>
           

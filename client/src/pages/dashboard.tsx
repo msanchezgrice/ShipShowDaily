@@ -41,14 +41,14 @@ export default function Dashboard() {
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        title: "Authentication Required",
+        description: "Please sign in to access the dashboard",
         variant: "destructive",
       });
-      setTimeout(() => navigate("/"), 500);
+      setTimeout(() => navigate("/"), 1000);
       return;
     }
-  }, [isAuthenticated, isLoading, toast]);
+  }, [isAuthenticated, isLoading, toast, navigate]);
 
   const { data: userVideos = [] } = useQuery<any[]>({
     queryKey: ["/api/user/videos"],
