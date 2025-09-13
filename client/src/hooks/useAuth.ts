@@ -20,7 +20,7 @@ export function useAuth() {
 
   // Fetch our app's user data (credits, etc.) when authenticated
   const { data: appUser, isLoading: isAppUserLoading } = useQuery<User>({
-    queryKey: ["/api/auth/user"],
+    queryKey: ["/api/auth/user-simple"],
     enabled: isSignedIn && isLoaded,
     retry: 2, // Retry up to 2 times on failure
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
@@ -30,7 +30,7 @@ export function useAuth() {
         throw new Error("No authentication token available");
       }
       
-      const response = await fetch("/api/auth/user", {
+      const response = await fetch("/api/auth/user-simple", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -44,7 +44,7 @@ export function useAuth() {
           const newToken = await getToken({ skipCache: true });
           if (newToken && newToken !== token) {
             // Retry with new token
-            const retryResponse = await fetch("/api/auth/user", {
+            const retryResponse = await fetch("/api/auth/user-simple", {
               headers: {
                 Authorization: `Bearer ${newToken}`,
               },

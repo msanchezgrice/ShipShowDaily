@@ -18,13 +18,10 @@ export default function Home() {
   const [leaderboardSortBy, setLeaderboardSortBy] = useState<'views' | 'favorites' | 'demo_clicks'>('views');
 
   const { data: topVideos = [] } = useQuery<any[]>({
-    queryKey: ["/api/videos/top", selectedTag],
+    queryKey: ["/api/videos/simple-top", selectedTag],
     queryFn: () => {
-      const params = new URLSearchParams();
-      if (selectedTag) {
-        params.append('tag', selectedTag);
-      }
-      const url = `/api/videos/top${params.toString() ? '?' + params.toString() : ''}`;
+      // Temporarily ignore tag filter until we fix the complex queries
+      const url = `/api/videos/simple-top?limit=3`;
       return fetch(url).then(async res => {
         if (!res.ok) return [];
         return res.json();
@@ -33,8 +30,8 @@ export default function Home() {
   });
 
   const { data: allTags = [] } = useQuery<Array<{ id: string; name: string }>>({
-    queryKey: ["/api/tags"],
-    queryFn: () => fetch('/api/tags').then(async r => (r.ok ? r.json() : [])),
+    queryKey: ["/api/simple-tags"],
+    queryFn: () => fetch('/api/simple-tags').then(async r => (r.ok ? r.json() : [])),
   });
 
   const { data: stats } = useQuery<{
