@@ -33,17 +33,16 @@ function AuthTokenSetter() {
   const { getToken } = useClerkAuth();
   
   useEffect(() => {
-    // Use a Clerk JWT template to ensure a verifiable token for the backend
+    // Set up the auth token getter for API requests
     setAuthTokenGetter(async () => {
       try {
-        // Try to get a JWT using a template named 'default'
-        const jwt = await getToken({ template: 'default' });
-        if (jwt) return jwt;
-      } catch (_) {
-        // Fall through to session token
+        // Get the standard session token from Clerk
+        const token = await getToken();
+        return token;
+      } catch (error) {
+        console.warn('Failed to get auth token:', error);
+        return null;
       }
-      // Fallback to the standard session token if no JWT template exists
-      return await getToken();
     });
   }, [getToken]);
   

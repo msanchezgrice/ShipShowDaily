@@ -58,12 +58,22 @@ export async function requireAuth(req: VercelRequest): Promise<{ userId: string;
   }
 }
 
+// Helper to set CORS headers
+function setCorsHeaders(res: VercelResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
+}
+
 // Helper to send unauthorized response
 export function sendUnauthorized(res: VercelResponse) {
+  setCorsHeaders(res);
   return res.status(401).json({ message: "Unauthorized" });
 }
 
 // Helper to handle authentication errors
 export function sendAuthError(res: VercelResponse, message = "Authentication failed") {
+  setCorsHeaders(res);
   return res.status(401).json({ message });
 }

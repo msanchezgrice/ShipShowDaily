@@ -1,8 +1,25 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 
+// Helper to set CORS headers
+export function setCorsHeaders(res: VercelResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
+}
+
 // Helper to handle method validation
 export function validateMethod(req: VercelRequest, res: VercelResponse, allowedMethods: string[]): boolean {
+  // Set CORS headers for all responses
+  setCorsHeaders(res);
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return false;
+  }
+  
   if (!allowedMethods.includes(req.method || '')) {
     res.status(405).json({ message: `Method ${req.method} not allowed` });
     return false;
@@ -13,6 +30,7 @@ export function validateMethod(req: VercelRequest, res: VercelResponse, allowedM
 // Helper to handle errors
 export function handleError(res: VercelResponse, error: any, defaultMessage = "Internal server error") {
   console.error("API Error:", error);
+  setCorsHeaders(res);
   
   if (error instanceof z.ZodError) {
     return res.status(400).json({ 
@@ -29,6 +47,7 @@ export function handleError(res: VercelResponse, error: any, defaultMessage = "I
 
 // Helper to send success response
 export function sendSuccess(res: VercelResponse, data: any, status = 200) {
+  setCorsHeaders(res);
   return res.status(status).json(data);
 }
 
