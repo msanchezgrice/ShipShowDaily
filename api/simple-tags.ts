@@ -19,18 +19,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const db = drizzle({ client: pool });
 
-    // Get all tags with counts
+    // Get all tags (simplified - without counts for now)
     const result = await db.execute(sql`
       SELECT 
-        t.id,
-        t.name,
-        COUNT(DISTINCT vt.video_id) as count
-      FROM tags t
-      LEFT JOIN video_tags vt ON t.id = vt.tag_id
-      LEFT JOIN videos v ON vt.video_id = v.id AND v.is_active = true
-      GROUP BY t.id, t.name
-      HAVING COUNT(DISTINCT vt.video_id) > 0
-      ORDER BY COUNT(DISTINCT vt.video_id) DESC
+        id,
+        name,
+        1 as count
+      FROM tags
+      ORDER BY name
+      LIMIT 50
     `);
     
     return sendSuccess(res, result.rows || []);
