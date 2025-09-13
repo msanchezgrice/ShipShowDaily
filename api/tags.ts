@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../server/storage';
+import { getAllTags } from './_lib/storage';
 import { validateMethod, handleError, sendSuccess } from './_lib/utils';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const tags = await storage.getAllTags();
+    const tags = await getAllTags();
     
     return sendSuccess(res, tags);
   } catch (error) {

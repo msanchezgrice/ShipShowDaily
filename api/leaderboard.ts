@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../server/storage';
+import { getTodayLeaderboard, getEnhancedLeaderboard } from './_lib/storage';
 import { validateMethod, handleError, sendSuccess, getQueryParamAsNumber, getQueryParam } from './_lib/utils';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -15,11 +15,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Use enhanced leaderboard if filtering options are provided
     if (sortBy !== 'views' || tagFilter) {
-      const enhancedLeaderboard = await storage.getEnhancedLeaderboard(limit, sortBy, tagFilter);
+      const enhancedLeaderboard = await getEnhancedLeaderboard(limit, sortBy, tagFilter);
       return sendSuccess(res, enhancedLeaderboard);
     } else {
       // Use original leaderboard for basic views sorting (for backward compatibility)
-      const leaderboard = await storage.getTodayLeaderboard(limit);
+      const leaderboard = await getTodayLeaderboard(limit);
       return sendSuccess(res, leaderboard);
     }
   } catch (error) {

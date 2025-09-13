@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../../server/storage';
+import { getTodayStats } from '../_lib/storage';
 import { validateMethod, handleError, sendSuccess } from '../_lib/utils';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const stats = await storage.getTodayStats();
+    const stats = await getTodayStats();
     
     return sendSuccess(res, stats);
   } catch (error) {
