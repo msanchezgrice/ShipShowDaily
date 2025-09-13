@@ -30,15 +30,19 @@ CLERK_SECRET_KEY=sk_test_...
      - For Vercel: `https://your-app.vercel.app`
      - Your custom domain (if any): `https://shipshow.io`
 
-3. **Configure Redirect URLs:**
-   - Go to **Settings > Paths**
-   - Set the following:
-     - Sign-in URL: `/`
-     - Sign-up URL: `/`
-     - After sign-in URL: `/dashboard`
-     - After sign-up URL: `/dashboard`
+3. **Authentication Type Setup:**
+   - Your app uses **embedded authentication** (modal popups)
+   - You do NOT need the Clerk hosted pages (accounts.shipshow.io)
+   - Leave the "Authentication" URLs in Clerk as they are - they won't be used
 
-4. **Enable Email/Password Authentication:**
+4. **Configure Paths (Optional):**
+   - These paths are for reference only since you're using embedded auth
+   - The app handles routing internally:
+     - Sign-in: Opens modal on current page
+     - After sign-in: Redirects to `/dashboard` or specified page
+     - Unauthorized: Redirects to `/` (home page)
+
+5. **Enable Email/Password Authentication:**
    - Go to **User & Authentication > Email, Phone, Username**
    - Enable **Email address**
    - Enable **Password**
@@ -62,6 +66,15 @@ After making these changes:
    - Deploy to Vercel: `git push`
    - Visit your Vercel URL
    - Test authentication
+
+## Important: Authentication Method
+
+**This app uses Clerk's EMBEDDED authentication:**
+- Sign-in/up happens in modal popups within your app
+- NO redirect to Clerk's hosted pages (accounts.shipshow.io)
+- All authentication UI is rendered inside your application
+
+The URLs shown in Clerk's "Authentication" section (like `https://accounts.shipshow.io/sign-in`) are NOT used by your app. They're for apps that redirect to Clerk's hosted pages, which you're not doing.
 
 ## What Was Fixed
 
