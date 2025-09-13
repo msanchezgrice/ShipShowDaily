@@ -43,8 +43,19 @@ export default function Home() {
     creditsEarned: number;
     activeUsers: number;
   }>({
-    queryKey: ["/api/stats/today"],
-    queryFn: () => fetch('/api/stats/today').then(async r => (r.ok ? r.json() : { totalViews:0, demosSubmitted:0, creditsEarned:0, activeUsers:0 })),
+    queryKey: ["/api/simple-stats"],
+    queryFn: () => fetch('/api/simple-stats').then(async r => {
+      if (r.ok) {
+        const data = await r.json();
+        return {
+          totalViews: data.totalViews || 0,
+          demosSubmitted: data.totalDemos || 0,
+          creditsEarned: data.totalCreditsEarned || 0,
+          activeUsers: data.activeUsers || 0
+        };
+      }
+      return { totalViews:0, demosSubmitted:0, creditsEarned:0, activeUsers:0 };
+    }),
   });
 
   const { data: leaderboard = [] } = useQuery<any[]>({
