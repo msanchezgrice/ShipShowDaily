@@ -25,8 +25,19 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY
 // Get Clerk publishable key from environment variables
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
+// Debug logging for production
+if (typeof window !== 'undefined') {
+  console.log('Clerk Config:', {
+    hasKey: !!CLERK_PUBLISHABLE_KEY,
+    keyPrefix: CLERK_PUBLISHABLE_KEY?.substring(0, 7),
+    environment: import.meta.env.MODE,
+    allEnvKeys: Object.keys(import.meta.env).filter(k => k.startsWith('VITE_'))
+  });
+}
+
 if (!CLERK_PUBLISHABLE_KEY) {
-  throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY environment variable");
+  console.error("Missing VITE_CLERK_PUBLISHABLE_KEY environment variable");
+  console.error("Available env vars:", Object.keys(import.meta.env));
 }
 
 function AuthTokenSetter() {
@@ -82,13 +93,38 @@ function Router() {
 }
 
 function App() {
+  // If no Clerk key, show error message
+  if (!CLERK_PUBLISHABLE_KEY) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Configuration Error</h1>
+          <p className="text-gray-700 mb-4">
+            The authentication system is not properly configured. 
+          </p>
+          <p className="text-sm text-gray-600 mb-4">
+            Missing: VITE_CLERK_PUBLISHABLE_KEY
+          </p>
+          <div className="bg-gray-100 rounded p-4">
+            <p className="text-xs text-gray-600">
+              Environment: {import.meta.env.MODE}
+            </p>
+            <p className="text-xs text-gray-600">
+              Available keys: {Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')).join(', ') || 'None'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
       <ClerkLoading>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Loading...</p>
+            <p className="mt-4 text-muted-foreground">Loading authentication...</p>
           </div>
         </div>
       </ClerkLoading>
