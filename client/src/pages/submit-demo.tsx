@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Navigation from "@/components/Navigation";
 import { ObjectUploader } from "@/components/ObjectUploader";
+import CloudflareUploader from "@/components/CloudflareUploader";
 import { TagInput } from "@/components/TagInput";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,9 @@ import { Label } from "@/components/ui/label";
 import { Upload, Link as LinkIcon, Type, FileText, Video } from "lucide-react";
 import type { UploadResult } from "@uppy/core";
 
+// Feature flag - set to true to use Cloudflare Stream
+const USE_CLOUDFLARE_STREAM = true;
+
 const submitDemoSchema = z.object({
   title: z.string().min(1, "Title is required").max(255, "Title too long"),
   description: z.string().min(1, "Description is required").max(1000, "Description too long"),
@@ -28,8 +32,10 @@ type SubmitDemoForm = z.infer<typeof submitDemoSchema>;
 
 export default function SubmitDemo() {
   const [videoPath, setVideoPath] = useState<string>("");
+  const [videoId, setVideoId] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
+  const [cloudflareUploaderRef, setCloudflareUploaderRef] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -44,8 +50,16 @@ export default function SubmitDemo() {
   });
 
   const submitMutation = useMutation({
-    mutationFn: async (data: SubmitDemoForm & { videoPath: string }) => {
-      return await apiRequest("POST", "/api/videos", data);
+    mutationFn: async (data: SubmitDemoForm & { videoPath?: string; videoId?: string }) => {
+      // For S3 uploads, we submit with videoPath
+      // For Cloudflare uploads, the video is already created
+      if (USE_CLOUDFLARE_STREAM) {
+        // For Cloudflare, the video is already created during upload
+        // We might need to update metadata if needed
+        return { success: true, videoId: data.videoId };
+      } else {
+        return await apiRequest("POST", "/api/videos", data);
+      }
     },
     onSuccess: () => {
       toast({
@@ -54,6 +68,7 @@ export default function SubmitDemo() {
       });
       form.reset();
       setVideoPath("");
+      setVideoId("");
       setTags([]);
       queryClient.invalidateQueries({ queryKey: ["/api/videos/top"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/videos"] });
@@ -135,20 +150,48 @@ export default function SubmitDemo() {
   };
 
   const onSubmit = (data: SubmitDemoForm) => {
-    if (!videoPath) {
-      toast({
-        title: "Video required",
-        description: "Please upload a video before submitting.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (USE_CLOUDFLARE_STREAM) {
+      // For Cloudflare, handle upload differently
+      if (!videoId && cloudflareUploaderRef) {
+        // Trigger upload through the CloudflareUploader
+        cloudflareUploaderRef.startUpload(
+          data.title,
+          data.description,
+          data.productUrl,
+          tags
+        );
+        return;
+      } else if (videoId) {
+        // Video already uploaded, just update metadata
+        submitMutation.mutate({
+          ...data,
+          videoId,
+          tags,
+        });
+      } else {
+        toast({
+          title: "Video required",
+          description: "Please select a video before submitting.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Original S3 flow
+      if (!videoPath) {
+        toast({
+          title: "Video required",
+          description: "Please upload a video before submitting.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    submitMutation.mutate({
-      ...data,
-      videoPath,
-      tags,
-    });
+      submitMutation.mutate({
+        ...data,
+        videoPath,
+        tags,
+      });
+    }
   };
 
   return (
@@ -179,7 +222,7 @@ export default function SubmitDemo() {
                   Video Upload *
                 </Label>
                 <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  {videoPath ? (
+                  {(USE_CLOUDFLARE_STREAM ? videoId : videoPath) ? (
                     <div className="space-y-2">
                       <div className="w-16 h-16 bg-accent/10 rounded-lg flex items-center justify-center mx-auto">
                         <Video className="h-8 w-8 text-accent" />
@@ -197,16 +240,33 @@ export default function SubmitDemo() {
                         <p className="text-sm text-muted-foreground mb-4">
                           MP4 format, max 100MB. Keep it under 60 seconds for best engagement.
                         </p>
-                        <ObjectUploader
-                          maxNumberOfFiles={1}
-                          maxFileSize={100 * 1024 * 1024} // 100MB
-                          onGetUploadParameters={handleGetUploadParameters}
-                          onComplete={handleUploadComplete}
-                          buttonClassName="bg-primary text-primary-foreground"
-                        >
-                          <Upload className="mr-2 h-4 w-4" />
-                          Choose Video File
-                        </ObjectUploader>
+                        {USE_CLOUDFLARE_STREAM ? (
+                          <CloudflareUploader
+                            ref={(ref) => setCloudflareUploaderRef(ref)}
+                            onUploadComplete={(uploadedVideoId) => {
+                              setVideoId(uploadedVideoId);
+                              toast({
+                                title: "Video uploaded!",
+                                description: "Now fill in the details and submit.",
+                              });
+                            }}
+                            onUploadStart={() => setIsUploading(true)}
+                            onUploadError={() => setIsUploading(false)}
+                            maxDurationSeconds={30}
+                            maxFileSizeMB={100}
+                          />
+                        ) : (
+                          <ObjectUploader
+                            maxNumberOfFiles={1}
+                            maxFileSize={100 * 1024 * 1024} // 100MB
+                            onGetUploadParameters={handleGetUploadParameters}
+                            onComplete={handleUploadComplete}
+                            buttonClassName="bg-primary text-primary-foreground"
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            Choose Video File
+                          </ObjectUploader>
+                        )}
                       </div>
                     </div>
                   )}
