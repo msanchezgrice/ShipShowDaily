@@ -7,6 +7,7 @@ import Navigation from "@/components/Navigation";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import CloudflareUploader from "@/components/CloudflareUploader";
 import { TagInput } from "@/components/TagInput";
+import { useUploadQueue } from "@/components/UploadQueue";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError, redirectToSignInClient } from "@/lib/authUtils";
@@ -33,11 +34,12 @@ type SubmitDemoForm = z.infer<typeof submitDemoSchema>;
 export default function SubmitDemo() {
   const [videoPath, setVideoPath] = useState<string>("");
   const [videoId, setVideoId] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
-  const [cloudflareUploaderRef, setCloudflareUploaderRef] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { addUpload } = useUploadQueue();
 
   const form = useForm<SubmitDemoForm>({
     resolver: zodResolver(submitDemoSchema),
@@ -151,30 +153,35 @@ export default function SubmitDemo() {
 
   const onSubmit = (data: SubmitDemoForm) => {
     if (USE_CLOUDFLARE_STREAM) {
-      // For Cloudflare, handle upload differently
-      if (!videoId && cloudflareUploaderRef) {
-        // Trigger upload through the CloudflareUploader
-        cloudflareUploaderRef.startUpload(
-          data.title,
-          data.description,
-          data.productUrl,
-          tags
-        );
-        return;
-      } else if (videoId) {
-        // Video already uploaded, just update metadata
-        submitMutation.mutate({
-          ...data,
-          videoId,
-          tags,
-        });
-      } else {
+      // For Cloudflare Stream - add to background upload queue
+      if (!selectedFile) {
         toast({
           title: "Video required",
           description: "Please select a video before submitting.",
           variant: "destructive",
         });
+        return;
       }
+
+      // Add to upload queue and reset form
+      addUpload({
+        file: selectedFile,
+        title: data.title,
+        description: data.description,
+        productUrl: data.productUrl,
+        tags,
+      });
+
+      toast({
+        title: "Upload queued! 🚀",
+        description: "Your video has been added to the upload queue. You can continue using the site while it uploads in the background.",
+      });
+
+      // Reset form
+      form.reset();
+      setSelectedFile(null);
+      setTags([]);
+      
     } else {
       // Original S3 flow
       if (!videoPath) {
@@ -222,7 +229,7 @@ export default function SubmitDemo() {
                   Video Upload *
                 </Label>
                 <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  {(USE_CLOUDFLARE_STREAM ? videoId : videoPath) ? (
+                  {(USE_CLOUDFLARE_STREAM ? selectedFile : videoPath) ? (
                     <div className="space-y-2">
                       <div className="w-16 h-16 bg-accent/10 rounded-lg flex items-center justify-center mx-auto">
                         <Video className="h-8 w-8 text-accent" />
@@ -241,20 +248,41 @@ export default function SubmitDemo() {
                           MP4 format, max 100MB. Keep it under 60 seconds for best engagement.
                         </p>
                         {USE_CLOUDFLARE_STREAM ? (
-                          <CloudflareUploader
-                            ref={(ref) => setCloudflareUploaderRef(ref)}
-                            onUploadComplete={(uploadedVideoId) => {
-                              setVideoId(uploadedVideoId);
-                              toast({
-                                title: "Video uploaded!",
-                                description: "Now fill in the details and submit.",
-                              });
-                            }}
-                            onUploadStart={() => setIsUploading(true)}
-                            onUploadError={() => setIsUploading(false)}
-                            maxDurationSeconds={30}
-                            maxFileSizeMB={100}
-                          />
+                          <div className="space-y-3">
+                            <input
+                              type="file"
+                              accept="video/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  // Validate file size (100MB)
+                                  if (file.size > 100 * 1024 * 1024) {
+                                    toast({
+                                      title: "File too large",
+                                      description: "Maximum file size is 100MB",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  setSelectedFile(file);
+                                }
+                              }}
+                              className="hidden"
+                              id="video-upload"
+                            />
+                            <label
+                              htmlFor="video-upload"
+                              className="flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 cursor-pointer transition-colors"
+                            >
+                              <Upload className="mr-2 h-4 w-4" />
+                              {selectedFile ? 'Change Video File' : 'Choose Video File'}
+                            </label>
+                            {selectedFile && (
+                              <div className="text-sm text-muted-foreground">
+                                Selected: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(1)} MB)
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <ObjectUploader
                             maxNumberOfFiles={1}

@@ -15,6 +15,7 @@ import PaymentComplete from "@/pages/payment-complete";
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useEffect } from 'react';
+import { UploadQueueProvider } from '@/components/UploadQueue';
 
 // Load Stripe with error handling
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY 
@@ -126,14 +127,16 @@ function App() {
           </div>
         </div>
       </ClerkLoading>
-      <ClerkLoaded>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
-        </QueryClientProvider>
-      </ClerkLoaded>
+            <ClerkLoaded>
+              <QueryClientProvider client={queryClient}>
+                <UploadQueueProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <Router />
+                  </TooltipProvider>
+                </UploadQueueProvider>
+              </QueryClientProvider>
+            </ClerkLoaded>
     </ClerkProvider>
   );
 }
