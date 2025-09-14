@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../../server/storage';
+import { storage } from '../_lib/storage';
 import { validateMethod, handleError, sendSuccess } from '../_lib/utils';
 import Stripe from 'stripe';
 

@@ -1,6 +1,6 @@
 import { createClerkClient } from '@clerk/clerk-sdk-node';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../../server/storage';
+import { storage } from './storage';
 
 if (!process.env.CLERK_SECRET_KEY) {
   throw new Error('Missing required Clerk secret: CLERK_SECRET_KEY');

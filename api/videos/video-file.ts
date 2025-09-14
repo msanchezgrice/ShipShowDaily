@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth, sendUnauthorized } from '../_lib/auth';
 import { validateMethod, handleError, sendSuccess } from '../_lib/utils';
-import { ObjectStorageService } from '../../server/objectStorage';
-import { ObjectPermission } from '../../server/objectAcl';
+import { ObjectStorageService } from '../_lib/objectStorage';
+import { ObjectPermission } from '../_lib/objectAcl';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
