@@ -376,7 +376,7 @@ export default function SubmitDemo() {
               <Button
                 type="submit"
                 className="w-full bg-primary text-primary-foreground"
-                disabled={submitMutation.isPending || isUploading || !videoPath}
+                disabled={submitMutation.isPending || isUploading || (USE_CLOUDFLARE_STREAM ? !selectedFile : !videoPath)}
                 data-testid="button-submit"
               >
                 {submitMutation.isPending ? (
