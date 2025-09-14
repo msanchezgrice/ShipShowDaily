@@ -47,8 +47,8 @@ function AuthTokenSetter() {
     // Set up the auth token getter for API requests
     setAuthTokenGetter(async () => {
       try {
-        // Get the default session token (includes standard claims)
-        const token = await getToken();
+        // Get the session token using our custom template with user claims
+        const token = await getToken({ template: "__session" });
         return token;
       } catch (error) {
         console.warn('Failed to get auth token:', error);
