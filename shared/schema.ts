@@ -52,6 +52,17 @@ export const videos = pgTable("videos", {
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  // Cloudflare Stream fields
+  provider: varchar("provider", { length: 10 }).default('s3'), // 's3' | 'stream'
+  provider_asset_id: varchar("provider_asset_id", { length: 255 }), // Cloudflare UID
+  hls_url: varchar("hls_url", { length: 500 }), // HLS manifest URL
+  dash_url: varchar("dash_url", { length: 500 }), // DASH manifest URL
+  status: varchar("status", { length: 20 }).default('ready'), // 'uploading' | 'processing' | 'ready' | 'rejected'
+  moderation_state: varchar("moderation_state", { length: 20 }).default('approved'), // 'pending' | 'approved' | 'limited' | 'rejected'
+  duration_s: integer("duration_s"), // Duration in seconds
+  width: integer("width"), // Video width
+  height: integer("height"), // Video height
+  boostAmount: integer("boost_amount").default(0).notNull(), // Credits spent to boost video
 });
 
 export const videoViews = pgTable("video_views", {

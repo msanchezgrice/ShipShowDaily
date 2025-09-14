@@ -1,0 +1,209 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import crypto from 'crypto';
+import { db } from '../_lib/db';
+import { videos } from '@shared/schema';
+import { eq } from 'drizzle-orm';
+
+const WEBHOOK_SECRET = process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET;
+
+/**
+ * Verify Cloudflare webhook signature
+ * Format: "time=1234567890,sig1=abc123..."
+ */
+function verifyWebhookSignature(secret: string, signature: string, body: string): boolean {
+  if (!signature || !secret) return false;
+
+  try {
+    // Parse signature header
+    const parts = signature.split(',').reduce((acc, part) => {
+      const [key, value] = part.split('=');
+      acc[key] = value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    const time = parts['time'];
+    const sig1 = parts['sig1'];
+
+    if (!time || !sig1) return false;
+
+    // Compute expected signature: HMAC-SHA256(secret, time + "." + body)
+    const message = `${time}.${body}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(message)
+      .digest('hex');
+
+    // Compare signatures (case-insensitive)
+    return expectedSignature.toLowerCase() === sig1.toLowerCase();
+  } catch (error) {
+    console.error('Signature verification error:', error);
+    return false;
+  }
+}
+
+interface CloudflareWebhookPayload {
+  uid: string;
+  readyToStream?: boolean;
+  status?: {
+    state: 'ready' | 'error' | 'queued' | 'inprogress';
+    pctComplete?: number;
+    errorReasonCode?: string;
+    errorReasonText?: string;
+  };
+  playback?: {
+    hls: string;
+    dash: string;
+  };
+  thumbnail?: string;
+  thumbnailTimestampPct?: number;
+  duration?: number;
+  input?: {
+    width: number;
+    height: number;
+  };
+  meta?: {
+    videoId?: string;
+    userId?: string;
+  };
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Only accept POST requests
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Read raw body for signature verification
+  const rawBody = typeof req.body === 'string' 
+    ? req.body 
+    : JSON.stringify(req.body);
+
+  // Verify webhook signature
+  const signature = req.headers['webhook-signature'] as string;
+  
+  if (!WEBHOOK_SECRET) {
+    console.error('CLOUDFLARE_STREAM_WEBHOOK_SECRET not configured');
+    return res.status(500).json({ error: 'Webhook not configured' });
+  }
+
+  if (!verifyWebhookSignature(WEBHOOK_SECRET, signature, rawBody)) {
+    console.error('Invalid webhook signature');
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  try {
+    // Parse webhook payload
+    const payload: CloudflareWebhookPayload = typeof req.body === 'string' 
+      ? JSON.parse(req.body) 
+      : req.body;
+
+    const { uid, readyToStream, status, playback, thumbnail, duration, input, meta } = payload;
+
+    if (!uid) {
+      return res.status(400).json({ error: 'Missing video UID' });
+    }
+
+    console.log(`Processing webhook for video UID: ${uid}, status: ${status?.state}, ready: ${readyToStream}`);
+
+    // Handle different webhook states
+    if (status?.state === 'ready' && readyToStream) {
+      // Video is ready for streaming
+      const updateData: any = {
+        status: 'ready',
+        isActive: true, // Activate the video
+      };
+
+      // Add playback URLs if provided
+      if (playback?.hls) {
+        updateData.hls_url = playback.hls;
+      }
+      if (playback?.dash) {
+        updateData.dash_url = playback.dash;
+      }
+
+      // Generate fallback HLS URL if not provided
+      if (!updateData.hls_url) {
+        // Use standard Cloudflare Stream URL pattern
+        updateData.hls_url = `https://videodelivery.net/${uid}/manifest/video.m3u8`;
+      }
+
+      // Add thumbnail if provided
+      if (thumbnail) {
+        updateData.thumbnailPath = thumbnail;
+      } else {
+        // Generate default thumbnail URL
+        updateData.thumbnailPath = `https://videodelivery.net/${uid}/thumbnails/thumbnail.jpg`;
+      }
+
+      // Add video metadata
+      if (duration) {
+        updateData.duration_s = Math.round(duration);
+      }
+      if (input?.width) {
+        updateData.width = input.width;
+      }
+      if (input?.height) {
+        updateData.height = input.height;
+      }
+
+      // Update video by provider_asset_id
+      const result = await db
+        .update(videos)
+        .set(updateData)
+        .where(eq(videos.provider_asset_id, uid))
+        .returning();
+
+      if (result.length === 0) {
+        console.error(`Video not found for UID: ${uid}`);
+        // Try updating by meta.videoId if provided
+        if (meta?.videoId) {
+          await db
+            .update(videos)
+            .set(updateData)
+            .where(eq(videos.id, meta.videoId));
+        }
+      }
+
+      console.log(`Video ${uid} marked as ready`);
+
+    } else if (status?.state === 'error') {
+      // Video processing failed
+      const errorMessage = status.errorReasonText || status.errorReasonCode || 'Unknown error';
+      
+      await db
+        .update(videos)
+        .set({
+          status: 'rejected',
+          isActive: false,
+        })
+        .where(eq(videos.provider_asset_id, uid));
+
+      console.error(`Video ${uid} processing failed: ${errorMessage}`);
+
+    } else if (status?.state === 'inprogress' || status?.state === 'queued') {
+      // Video is still processing
+      console.log(`Video ${uid} is ${status.state}, progress: ${status.pctComplete}%`);
+      
+      // Optionally update processing progress
+      await db
+        .update(videos)
+        .set({
+          status: 'processing',
+        })
+        .where(eq(videos.provider_asset_id, uid));
+    }
+
+    // Return success response
+    return res.status(200).json({ 
+      success: true,
+      message: `Webhook processed for ${uid}` 
+    });
+
+  } catch (error: any) {
+    console.error('Webhook processing error:', error);
+    return res.status(500).json({ 
+      error: 'Failed to process webhook',
+      detail: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+}
