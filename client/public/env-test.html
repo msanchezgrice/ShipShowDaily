@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environment Variables Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Environment Variables Test</h1>
+        <p>This page tests if environment variables are being passed correctly during build.</p>
+        
+        <h2>Build Information:</h2>
+        <div id="build-info"></div>
+        
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Check Vercel Dashboard → Settings → Environment Variables</li>
+            <li>Ensure you have: <code>VITE_CLERK_PUBLISHABLE_KEY</code> (NOT NEXT_PUBLIC_...)</li>
+            <li>The value should start with <code>pk_live_</code> or <code>pk_test_</code></li>
+            <li>After adding/updating, redeploy by pushing any commit</li>
+        </ol>
+        
+        <h2>Expected Variables in Vercel:</h2>
+        <pre>
+VITE_CLERK_PUBLISHABLE_KEY = [Your Clerk publishable key starting with pk_live_]
+CLERK_SECRET_KEY = [Your Clerk secret key starting with sk_live_]  
+DATABASE_URL = [Your PostgreSQL connection string]
+        </pre>
+    </div>
+    
+    <script>
+        // This will show what's available at runtime
+        const info = document.getElementById('build-info');
+        const timestamp = new Date().toISOString();
+        
+        info.innerHTML = `
+            <p><strong>Test Time:</strong> ${timestamp}</p>
+            <p><strong>Location:</strong> ${window.location.href}</p>
+            <p><strong>This is a static HTML page to verify the build environment.</strong></p>
+            <p class="info">The actual app uses Vite, which handles environment variables differently.</p>
+            <p class="info">Check the browser console on the main app for Clerk configuration details.</p>
+        `;
+    </script>
+</body>
+</html>
