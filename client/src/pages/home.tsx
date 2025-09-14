@@ -4,7 +4,7 @@ import Navigation from "@/components/Navigation";
 import { useLocation } from "wouter";
 import VideoCard from "@/components/VideoCard";
 import Leaderboard from "@/components/Leaderboard";
-import VideoPlayer from "@/components/VideoPlayer";
+import VideoPlayer from "@/components/VideoPlayerEnhanced";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
