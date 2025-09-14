@@ -25,7 +25,7 @@ export function useAuth() {
     retry: 2, // Retry up to 2 times on failure
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
     queryFn: async () => {
-      const token = await getToken();
+      const token = await getToken({ template: "__session" });
       if (!token) {
         throw new Error("No authentication token available");
       }
@@ -41,7 +41,7 @@ export function useAuth() {
         if (response.status === 401) {
           console.warn("Authentication token may be expired, retrying...");
           // Token might be expired, try to refresh it
-          const newToken = await getToken({ skipCache: true });
+          const newToken = await getToken({ template: "__session", skipCache: true });
           if (newToken && newToken !== token) {
             // Retry with new token
             const retryResponse = await fetch("/api/auth/user-simple", {

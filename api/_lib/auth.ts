@@ -27,14 +27,22 @@ export async function requireAuth(req: VercelRequest): Promise<{ userId: string;
   try {
     const token = req.headers.authorization?.toString().replace('Bearer ', '');
     
+    console.log('requireAuth - Token present:', !!token);
+    console.log('requireAuth - Token length:', token?.length || 0);
+    console.log('requireAuth - Token prefix:', token?.substring(0, 20) || 'none');
+    
     if (!token) {
+      console.log('requireAuth - No token provided');
       return null;
     }
 
     // Verify the JWT token
+    console.log('requireAuth - Attempting to verify token...');
     const payload = await clerk.verifyToken(token);
+    console.log('requireAuth - Token verified, payload:', { sub: payload.sub, iss: payload.iss });
     
     if (!payload.sub) {
+      console.log('requireAuth - No user ID in payload');
       return null;
     }
 
@@ -52,8 +60,12 @@ export async function requireAuth(req: VercelRequest): Promise<{ userId: string;
       userId: clerkUser.id,
       user: clerkUser
     };
-  } catch (error) {
-    console.error('Authentication error:', error);
+  } catch (error: any) {
+    console.error('requireAuth - Authentication error:', {
+      message: error.message,
+      type: error.constructor.name,
+      stack: error.stack?.split('\n')[0] // First line of stack trace
+    });
     return null;
   }
 }

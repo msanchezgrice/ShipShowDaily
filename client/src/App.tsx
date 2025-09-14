@@ -47,8 +47,8 @@ function AuthTokenSetter() {
     // Set up the auth token getter for API requests
     setAuthTokenGetter(async () => {
       try {
-        // Get the standard session token from Clerk
-        const token = await getToken();
+        // Get the session token using the custom template
+        const token = await getToken({ template: "__session" });
         return token;
       } catch (error) {
         console.warn('Failed to get auth token:', error);

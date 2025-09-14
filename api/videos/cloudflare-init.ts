@@ -23,10 +23,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Require authentication
+    console.log('Checking authentication for cloudflare-init...');
+    console.log('Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
+    
     const auth = await requireAuth(req);
     if (!auth) {
+      console.log('Authentication failed for cloudflare-init');
       return sendUnauthorized(res);
     }
+    
+    console.log('Authentication successful for user:', auth.userId);
 
     // Validate request body
     const body = req.body as InitUploadBody;
