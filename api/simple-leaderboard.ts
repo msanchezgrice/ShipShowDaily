@@ -4,6 +4,22 @@ import { drizzle } from 'drizzle-orm/neon-serverless';
 import { sql } from 'drizzle-orm';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  // Only allow GET requests
+  if (req.method !== 'GET') {
+    return res.status(405).json({ message: `Method ${req.method} not allowed` });
+  }
+  
   try {
     if (!process.env.DATABASE_URL) {
       return res.status(500).json({ error: "DATABASE_URL not set" });
@@ -35,10 +51,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       LIMIT 20
     `);
     
-    res.status(200).json(result.rows || []);
+    return res.status(200).json(result.rows || []);
   } catch (error: any) {
     console.error('Leaderboard error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || "Failed to fetch leaderboard",
       details: error.toString()
     });
