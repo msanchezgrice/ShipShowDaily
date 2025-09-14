@@ -12,7 +12,6 @@ import Dashboard from "@/pages/dashboard";
 import Settings from "@/pages/settings";
 import Feed from "@/pages/feed";
 import PaymentComplete from "@/pages/payment-complete";
-import { useAuth } from "@/hooks/useAuth";
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useEffect } from 'react';
@@ -61,8 +60,7 @@ function AuthTokenSetter() {
 }
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
-
+  // Remove useAuth from here - it's not needed and causes context issues
   return (
     <>
       <AuthTokenSetter />
