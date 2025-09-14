@@ -154,7 +154,7 @@ export default function VideoCard({ video, position, onPlay, onTagClick }: Video
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Avatar className="h-6 w-6">
-              <AvatarImage src={video.creator.profileImageUrl} />
+              <AvatarImage src={video.creator?.profileImageUrl || undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                 {getCreatorInitial()}
               </AvatarFallback>

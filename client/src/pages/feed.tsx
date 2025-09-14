@@ -255,7 +255,7 @@ function FeedVideoItem({
           {/* Creator Info */}
           <div className="flex items-center mb-3">
             <Avatar className="h-10 w-10 mr-3">
-              <AvatarImage src={item.creator.profileImageUrl} />
+              <AvatarImage src={item.creator?.profileImageUrl || undefined} />
               <AvatarFallback>
                 <User className="h-5 w-5" />
               </AvatarFallback>

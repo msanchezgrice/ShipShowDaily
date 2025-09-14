@@ -363,7 +363,7 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={video.creator.profileImageUrl} />
+                <AvatarImage src={video.creator?.profileImageUrl || undefined} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   {getCreatorInitial()}
                 </AvatarFallback>

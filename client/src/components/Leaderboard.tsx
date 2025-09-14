@@ -165,7 +165,7 @@ export default function Leaderboard({ items, sortBy = 'views', onSortChange }: L
                     {item.position === 1 && <Crown className="ml-1 h-3 w-3" />}
                   </Badge>
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={item.creator.profileImageUrl} />
+                    <AvatarImage src={item.creator?.profileImageUrl || undefined} />
                     <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                       {getCreatorInitial(item.creator)}
                     </AvatarFallback>
