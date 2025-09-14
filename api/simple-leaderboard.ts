@@ -51,7 +51,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       LIMIT 20
     `);
     
-    return res.status(200).json(result.rows || []);
+    // Transform the results to ensure creator object exists
+    const videos = (result.rows || []).map((row: any) => ({
+      id: row.id,
+      title: row.title || '',
+      description: row.description || '',
+      productUrl: row.productUrl || '',
+      videoPath: row.videoPath || '',
+      thumbnailPath: row.thumbnailPath || null,
+      totalViews: row.totalViews || 0,
+      views: row.views || 0,
+      creditsSpent: row.creditsSpent || 0,
+      isActive: row.isActive || false,
+      creator: {
+        id: row.creatorId || '',
+        name: row.creatorName || 'Anonymous',
+        profileImageUrl: row.creatorImageUrl || null
+      }
+    }));
+    
+    return res.status(200).json(videos);
   } catch (error: any) {
     console.error('Leaderboard error:', error);
     return res.status(500).json({
