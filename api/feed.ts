@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../server/storage';
+import { storage } from './_lib/storage-adapter';
 import { requireAuth } from './_lib/auth';
 import { validateMethod, handleError, sendSuccess, getQueryParamAsNumber, getQueryParam } from './_lib/utils';
 

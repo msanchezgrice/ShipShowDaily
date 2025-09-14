@@ -218,7 +218,7 @@ export default function Home() {
                 </div>
               </div>
               
-              {selectedTag && (
+              {selectedTag && topVideos && (
                 <p className="text-sm text-muted-foreground mt-2">
                   Showing videos tagged with "<strong>{selectedTag}</strong>". {topVideos.length} video{topVideos.length !== 1 ? 's' : ''} found.
                 </p>
@@ -226,7 +226,7 @@ export default function Home() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" data-testid="videos-grid">
-              {topVideos.map((video: any, index: number) => (
+              {topVideos && topVideos.length > 0 && topVideos.map((video: any, index: number) => (
                 <VideoCard
                   key={video.id}
                   video={video}
@@ -237,7 +237,7 @@ export default function Home() {
               ))}
             </div>
 
-            {topVideos.length === 0 && (
+            {(!topVideos || topVideos.length === 0) && (
               <div className="text-center py-12">
                 <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No videos available today. Be the first to submit!</p>

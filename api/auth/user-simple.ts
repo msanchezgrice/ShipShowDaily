@@ -72,32 +72,71 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const db = drizzle({ client: pool });
     
-    // First, upsert the user to ensure they exist in our database
-    await db.execute(sql`
-      INSERT INTO users (
-        id, 
-        email, 
-        first_name, 
-        last_name, 
-        profile_image_url,
-        credits,
-        total_credits_earned
-      ) VALUES (
-        ${clerkUser.id},
-        ${clerkUser.primaryEmailAddress?.emailAddress || clerkUser.emailAddresses[0]?.emailAddress || ''},
-        ${clerkUser.firstName || ''},
-        ${clerkUser.lastName || ''},
-        ${clerkUser.imageUrl || ''},
-        10,  -- Default credits for new users
-        0
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        email = EXCLUDED.email,
-        first_name = EXCLUDED.first_name,
-        last_name = EXCLUDED.last_name,
-        profile_image_url = EXCLUDED.profile_image_url,
-        updated_at = CURRENT_TIMESTAMP
+    const userEmail = clerkUser.primaryEmailAddress?.emailAddress || 
+                     clerkUser.emailAddresses[0]?.emailAddress || 
+                     `${clerkUser.id}@placeholder.email`;
+    
+    // First, try to get the existing user
+    const existingUserResult = await db.execute(sql`
+      SELECT id FROM users WHERE id = ${clerkUser.id} OR email = ${userEmail} LIMIT 1
     `);
+    
+    if (existingUserResult.rows.length > 0) {
+      const existingUser = existingUserResult.rows[0];
+      
+      // If user exists but with different ID (email match), update the ID
+      if (existingUser.id !== clerkUser.id) {
+        // Delete any existing user with the Clerk ID first
+        await db.execute(sql`
+          DELETE FROM users WHERE id = ${clerkUser.id}
+        `);
+        
+        // Update the existing user to use Clerk's ID
+        await db.execute(sql`
+          UPDATE users 
+          SET 
+            id = ${clerkUser.id},
+            first_name = ${clerkUser.firstName || ''},
+            last_name = ${clerkUser.lastName || ''},
+            profile_image_url = ${clerkUser.imageUrl || ''},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${existingUser.id}
+        `);
+      } else {
+        // User exists with correct ID, just update their info
+        await db.execute(sql`
+          UPDATE users 
+          SET 
+            email = ${userEmail},
+            first_name = ${clerkUser.firstName || ''},
+            last_name = ${clerkUser.lastName || ''},
+            profile_image_url = ${clerkUser.imageUrl || ''},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${clerkUser.id}
+        `);
+      }
+    } else {
+      // User doesn't exist, create new user
+      await db.execute(sql`
+        INSERT INTO users (
+          id, 
+          email, 
+          first_name, 
+          last_name, 
+          profile_image_url,
+          credits,
+          total_credits_earned
+        ) VALUES (
+          ${clerkUser.id},
+          ${userEmail},
+          ${clerkUser.firstName || ''},
+          ${clerkUser.lastName || ''},
+          ${clerkUser.imageUrl || ''},
+          10,  -- Default credits for new users
+          0
+        )
+      `);
+    }
     
     // Get user data from database
     const result = await db.execute(sql`
@@ -112,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM users
-      WHERE id = ${userId}
+      WHERE id = ${clerkUser.id}
       LIMIT 1
     `);
 
