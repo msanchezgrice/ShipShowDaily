@@ -123,6 +123,33 @@ export async function getUserVideos(userId: string) {
   return result.map(r => ({ ...r.video, todayViews: r.todayViews }));
 }
 
+export async function getUserVideosWithTags(userId: string) {
+  // For now, just return getUserVideos without tags
+  // Complex joins can be added later
+  return getUserVideos(userId);
+}
+
+export async function getVideoWithCreatorAndTags(id: string) {
+  const result = await db
+    .select()
+    .from(videos)
+    .leftJoin(users, eq(videos.creatorId, users.id))
+    .where(eq(videos.id, id));
+  
+  if (result.length === 0) return undefined;
+  
+  return {
+    ...result[0].videos,
+    creator: result[0].users,
+    tags: [], // Tags would need separate query
+  };
+}
+
+export async function getTopVideosTodayWithTags(limit = 10, tagFilter?: string) {
+  // For now, just return getTopVideosToday without tags
+  return getTopVideosToday(limit);
+}
+
 export async function getTopVideosToday(limit = 10) {
   const today = new Date().toISOString().split('T')[0];
   
@@ -168,7 +195,7 @@ export async function hasUserViewedVideo(userId: string, videoId: string) {
     .select()
     .from(videoViews)
     .where(and(
-      eq(videoViews.userId, userId),
+      eq(videoViews.viewerId, userId),
       eq(videoViews.videoId, videoId)
     ));
   
@@ -322,8 +349,7 @@ export async function startVideoViewing(userId: string, videoId: string) {
       userId,
       videoId,
       startedAt: new Date(),
-      completed: false,
-      creditAwarded: false,
+      isCompleted: false,
     })
     .returning();
   
@@ -335,7 +361,7 @@ export async function completeVideoViewing(sessionId: string) {
     .update(videoViewingSessions)
     .set({
       completedAt: new Date(),
-      completed: true,
+      isCompleted: true,
     })
     .where(eq(videoViewingSessions.id, sessionId))
     .returning();
@@ -350,7 +376,7 @@ export async function getActiveVideoViewingSession(userId: string, videoId: stri
     .where(and(
       eq(videoViewingSessions.userId, userId),
       eq(videoViewingSessions.videoId, videoId),
-      eq(videoViewingSessions.completed, false)
+      eq(videoViewingSessions.isCompleted, false)
     ))
     .orderBy(desc(videoViewingSessions.startedAt));
   
@@ -367,7 +393,7 @@ export async function hasUserViewedVideoToday(userId: string, videoId: string) {
     .where(and(
       eq(videoViewingSessions.userId, userId),
       eq(videoViewingSessions.videoId, videoId),
-      eq(videoViewingSessions.completed, true),
+      eq(videoViewingSessions.isCompleted, true),
       gte(videoViewingSessions.completedAt, today)
     ));
   
@@ -494,8 +520,11 @@ export const storage = {
   createVideoWithTags,
   getVideo,
   getVideoWithCreator,
+  getVideoWithCreatorAndTags,
   getUserVideos,
+  getUserVideosWithTags,
   getTopVideosToday,
+  getTopVideosTodayWithTags,
   incrementVideoViews,
   recordVideoView,
   hasUserViewedVideo,

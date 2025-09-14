@@ -72,8 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const db = drizzle(pool);
     
-    const userEmail = clerkUser.primaryEmailAddress?.emailAddress || 
-                     clerkUser.emailAddresses[0]?.emailAddress || 
+    const userEmail = clerkUser.emailAddresses?.[0]?.emailAddress || 
                      `${clerkUser.id}@placeholder.email`;
     
     // First, try to get the existing user
