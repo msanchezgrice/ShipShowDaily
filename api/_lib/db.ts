@@ -9,11 +9,12 @@ if (!process.env.DATABASE_URL) {
 // Create postgres connection for Supabase
 const connectionString = process.env.DATABASE_URL;
 
-// Postgres.js automatically handles connection pooling
+// Postgres.js configuration for Supabase
 const sql = postgres(connectionString, {
   max: 1, // Serverless should use single connections
   idle_timeout: 20,
   connect_timeout: 10,
+  ssl: 'require', // Supabase requires SSL
 });
 
 export const db = drizzle(sql, { schema });
