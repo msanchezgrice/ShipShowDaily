@@ -23,12 +23,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Try basic connection
-    const { Pool } = await import('@neondatabase/serverless');
-    const { drizzle } = await import('drizzle-orm/neon-serverless');
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const postgres = (await import('postgres')).default;
     const { sql } = await import('drizzle-orm');
     
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const db = drizzle(pool);
+    const client = postgres(process.env.DATABASE_URL!, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+    });
+    const db = drizzle(client);
     
     console.log('Attempting database connection...');
     
@@ -37,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     console.log('Database query successful');
     
-    await pool.end();
+    await client.end();
     
     return res.status(200).json({
       success: true,
