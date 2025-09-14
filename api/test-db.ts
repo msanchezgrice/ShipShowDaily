@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Create a simple connection without WebSocket config
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const db = drizzle({ client: pool });
+    const db = drizzle(pool);
 
     // Test simple query
     const result = await db.execute(sql`SELECT COUNT(*) as count FROM videos`);

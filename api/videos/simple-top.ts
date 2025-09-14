@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Create a simple connection
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const db = drizzle({ client: pool });
+    const db = drizzle(pool);
 
     // Get top videos by total views
     const result = await db.execute(sql`

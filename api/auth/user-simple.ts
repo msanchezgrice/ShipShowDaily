@@ -70,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Create database connection
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const db = drizzle({ client: pool });
+    const db = drizzle(pool);
     
     const userEmail = clerkUser.primaryEmailAddress?.emailAddress || 
                      clerkUser.emailAddresses[0]?.emailAddress || 

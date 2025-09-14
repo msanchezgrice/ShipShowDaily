@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Create a simple connection
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const db = drizzle({ client: pool });
+    const db = drizzle(pool);
 
     // Simple direct SQL query
     const result = await db.execute(sql`
