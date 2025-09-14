@@ -153,9 +153,14 @@ export default function SubmitDemo() {
   };
 
   const onSubmit = (data: SubmitDemoForm) => {
+    console.log('Form submitted with data:', data);
+    console.log('Selected file:', selectedFile);
+    console.log('USE_CLOUDFLARE_STREAM:', USE_CLOUDFLARE_STREAM);
+    
     if (USE_CLOUDFLARE_STREAM) {
       // For Cloudflare Stream - add to background upload queue
       if (!selectedFile) {
+        console.log('No file selected');
         toast({
           title: "Video required",
           description: "Please select a video before submitting.",
@@ -164,24 +169,37 @@ export default function SubmitDemo() {
         return;
       }
 
-      // Add to upload queue and reset form
-      addUpload({
-        file: selectedFile,
-        title: data.title,
-        description: data.description,
-        productUrl: data.productUrl,
-        tags,
-      });
+      console.log('Adding to upload queue...');
+      
+      try {
+        // Add to upload queue and reset form
+        addUpload({
+          file: selectedFile,
+          title: data.title,
+          description: data.description,
+          productUrl: data.productUrl,
+          tags,
+        });
 
-      toast({
-        title: "Upload queued! 🚀",
-        description: "Your video has been added to the upload queue. You can continue using the site while it uploads in the background.",
-      });
+        toast({
+          title: "Upload queued! 🚀",
+          description: "Your video has been added to the upload queue. You can continue using the site while it uploads in the background.",
+        });
 
-      // Reset form
-      form.reset();
-      setSelectedFile(null);
-      setTags([]);
+        // Reset form
+        form.reset();
+        setSelectedFile(null);
+        setTags([]);
+        
+        console.log('Upload queued successfully');
+      } catch (error) {
+        console.error('Error adding to upload queue:', error);
+        toast({
+          title: "Error",
+          description: "Failed to queue upload. Please try again.",
+          variant: "destructive",
+        });
+      }
       
     } else {
       // Original S3 flow
@@ -381,6 +399,12 @@ export default function SubmitDemo() {
                 className="w-full bg-primary text-primary-foreground"
                 disabled={submitMutation.isPending || isUploading || (USE_CLOUDFLARE_STREAM ? !selectedFile : !videoPath)}
                 data-testid="button-submit"
+                onClick={(e) => {
+                  console.log('Submit button clicked!');
+                  console.log('Form valid:', form.formState.isValid);
+                  console.log('Selected file:', selectedFile);
+                  console.log('Button disabled:', submitMutation.isPending || isUploading || (USE_CLOUDFLARE_STREAM ? !selectedFile : !videoPath));
+                }}
               >
                 {submitMutation.isPending ? (
                   "Submitting..."
