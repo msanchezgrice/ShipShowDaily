@@ -8,6 +8,7 @@ import { ObjectUploader } from "@/components/ObjectUploader";
 import CloudflareUploader from "@/components/CloudflareUploader";
 import { TagInput } from "@/components/TagInput";
 import { useUploadQueue } from "@/components/UploadQueue";
+import { AuthStatus } from "@/components/AuthStatus";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError, redirectToSignInClient } from "@/lib/authUtils";
@@ -213,6 +214,8 @@ export default function SubmitDemo() {
           </p>
         </div>
 
+        <AuthStatus />
+        
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="flex items-center">
