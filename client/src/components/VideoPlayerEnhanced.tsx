@@ -428,7 +428,7 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
           <div className="p-6 bg-card text-card-foreground">
             <div className="flex justify-between items-start mb-4">
               <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-2">{video.title}</h2>
+                <h2 className="text-2xl font-bold mb-2">{video?.title || 'Untitled'}</h2>
                 <p className="text-muted-foreground mb-4">{video.description}</p>
               </div>
               <Button

@@ -338,7 +338,7 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-foreground mb-2">{video.title}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-2">{video?.title || 'Untitled'}</h2>
               <p className="text-muted-foreground">{video.description}</p>
             </div>
             <div className="text-right ml-4 flex flex-col items-end space-y-2">
