@@ -1,5 +1,5 @@
 import { db } from './db';
-import { users, videos, dailyStats, tags, videoTags, videoFavorites } from '@shared/schema';
+import { users, videos, dailyStats, tags, videoTags, videoFavorites } from '../../shared/schema';
 import { eq, desc, sql, and, gte } from 'drizzle-orm';
 
 export async function getFeedVideos(params: {

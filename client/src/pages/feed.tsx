@@ -96,7 +96,7 @@ function FeedVideoItem({
         title: "Added to favorites",
         description: "This demo has been added to your favorites",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/simple-feed"] });
     },
   });
 
@@ -360,9 +360,9 @@ export default function Feed() {
   const videoElementsRef = useRef<Map<string, HTMLElement>>(new Map());
 
   const { data: feedVideos = [], isLoading } = useQuery<FeedVideo[]>({
-    queryKey: ["/api/feed"],
+    queryKey: ["/api/simple-feed"],
     queryFn: async () => {
-      const response = await fetch("/api/feed?limit=10");
+      const response = await fetch("/api/simple-feed?limit=20");
       if (!response.ok) throw new Error("Failed to fetch feed");
       return response.json();
     },
