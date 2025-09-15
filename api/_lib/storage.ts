@@ -1,5 +1,5 @@
 import { db } from './db';
-import { users, videos, dailyStats, tags, videoTags, videoFavorites, videoViews, creditTransactions, videoViewingSessions, demoLinkClicks } from '@shared/schema';
+import { users, videos, dailyStats, tags, videoTags, videoFavorites, videoViews, creditTransactions, videoViewingSessions, demoLinkClicks } from '../../shared/schema';
 import { eq, desc, sql, and, gte, lt } from 'drizzle-orm';
 
 // User operations
