@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         thumbnailPath: `https://customer-59frtv9ixcqe1nv6.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=1s`,
         creatorId: 'manual-upload',
         provider: 'stream',
-        providerAssetId: uid,
+        provider_asset_id: uid,
         status: 'ready',
         isActive: true,
       })

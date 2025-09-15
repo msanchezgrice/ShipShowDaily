@@ -154,7 +154,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await db
         .update(videos)
         .set({
-          providerAssetId: uid,
+          provider_asset_id: uid,
           status: 'processing',
         })
         .where(eq(videos.id, videoRow.id));

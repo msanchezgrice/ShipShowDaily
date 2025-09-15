@@ -150,7 +150,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const result = await db
         .update(videos)
         .set(updateData)
-        .where(eq(videos.providerAssetId, uid))
+        .where(eq(videos.provider_asset_id, uid))
         .returning();
 
       if (result.length === 0) {
@@ -176,7 +176,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           status: 'failed',
           isActive: false,
         })
-        .where(eq(videos.providerAssetId, uid));
+        .where(eq(videos.provider_asset_id, uid));
 
       console.error(`Video ${uid} processing failed: ${errorMessage}`);
 
@@ -190,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .set({
           status: 'processing',
         })
-        .where(eq(videos.providerAssetId, uid));
+        .where(eq(videos.provider_asset_id, uid));
     }
 
     await client.end();
