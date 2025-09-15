@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import Navigation from "@/components/Navigation";
-import VideoPlayer from "@/components/VideoPlayer";
+import SimpleVideoPlayer from "@/components/SimpleVideoPlayer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ export default function Watch() {
     queryKey: [`/api/videos/${videoId}`],
     enabled: !!videoId,
     retry: 2,
+    staleTime: 0, // Always fetch fresh data
   });
 
   if (isLoading) {
@@ -78,11 +79,11 @@ export default function Watch() {
 
         {/* Video Player */}
         <div className="mb-6">
-          {video.videoPath ? (
-            <VideoPlayer
-              src={video.videoPath}
-              poster={video.thumbnailPath || undefined}
-              className="w-full rounded-lg overflow-hidden"
+          {(video?.videoPath || video?.hls_url) ? (
+            <SimpleVideoPlayer
+              src={video?.hls_url || video?.videoPath}
+              poster={video?.thumbnailPath || undefined}
+              className="w-full"
             />
           ) : (
             <div className="bg-secondary rounded-lg aspect-video flex items-center justify-center">
@@ -94,29 +95,29 @@ export default function Watch() {
         {/* Video Info */}
         <Card>
           <CardContent className="p-6">
-            <h1 className="text-2xl font-bold mb-2">{video.title || 'Untitled'}</h1>
+            <h1 className="text-2xl font-bold mb-2">{video?.title || 'Untitled'}</h1>
             
             <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
               <span className="flex items-center">
                 <Eye className="mr-1 h-4 w-4" />
-                {video.totalViews || 0} views
+                {video?.totalViews || 0} views
               </span>
               <span className="flex items-center">
                 <Calendar className="mr-1 h-4 w-4" />
-                {video.createdAt ? new Date(video.createdAt).toLocaleDateString() : 'N/A'}
+                {video?.createdAt ? new Date(video.createdAt).toLocaleDateString() : 'N/A'}
               </span>
-              {video.status === 'processing' && (
+              {video?.status === 'processing' && (
                 <Badge variant="outline" className="text-yellow-600">
                   Processing
                 </Badge>
               )}
             </div>
 
-            {video.description && (
+            {video?.description && (
               <p className="text-foreground mb-6">{video.description}</p>
             )}
 
-            {video.productUrl && (
+            {video?.productUrl && (
               <Button 
                 onClick={() => window.open(video.productUrl, '_blank')}
                 className="w-full sm:w-auto"
