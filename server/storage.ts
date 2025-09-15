@@ -31,7 +31,7 @@ import {
   type InsertDemoLinkClick,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, gte, lt } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lt, or } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -421,6 +421,8 @@ export class DatabaseStorage implements IStorage {
     views: number;
   }>> {
     const today = new Date().toISOString().split('T')[0];
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
     
     const result = await db
       .select({
@@ -437,8 +439,21 @@ export class DatabaseStorage implements IStorage {
           eq(dailyStats.date, today)
         )
       )
-      .where(eq(videos.isActive, true))
-      .orderBy(desc(sql`COALESCE(${dailyStats.views}, 0)`))
+      .where(
+        and(
+          eq(videos.isActive, true),
+          or(
+            // Either has views today
+            sql`${dailyStats.views} > 0`,
+            // Or was created today
+            gte(videos.createdAt, todayStart)
+          )
+        )
+      )
+      .orderBy(
+        desc(sql`COALESCE(${dailyStats.views}, 0)`),
+        desc(videos.createdAt) // Secondary sort by creation time
+      )
       .limit(limit);
 
     return result.map((row, index) => ({

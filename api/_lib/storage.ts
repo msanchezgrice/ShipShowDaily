@@ -1,6 +1,6 @@
 import { db } from './db';
 import { users, videos, dailyStats, tags, videoTags, videoFavorites, videoViews, creditTransactions, videoViewingSessions, demoLinkClicks } from '../../shared/schema';
-import { eq, desc, sql, and, gte, lt } from 'drizzle-orm';
+import { eq, desc, sql, and, gte, lt, or } from 'drizzle-orm';
 
 // User operations
 export async function getUser(id: string) {
@@ -284,6 +284,8 @@ export async function getUserCreditTransactions(userId: string, limit = 10) {
 // Leaderboard operations
 export async function getTodayLeaderboard(limit = 10) {
   const today = new Date().toISOString().split('T')[0];
+  const todayStart = new Date(today);
+  todayStart.setHours(0, 0, 0, 0);
   
   const result = await db
     .select({
@@ -300,6 +302,7 @@ export async function getTodayLeaderboard(limit = 10) {
       totalViews: videos.totalViews,
       creditsSpent: sql<number>`COALESCE(${dailyStats.creditsSpent}, 0)`,
       isActive: videos.isActive,
+      createdAt: videos.createdAt,
     })
     .from(videos)
     .leftJoin(users, eq(videos.creatorId, users.id))
@@ -310,8 +313,21 @@ export async function getTodayLeaderboard(limit = 10) {
         eq(dailyStats.date, today)
       )
     )
-    .where(eq(videos.isActive, true))
-    .orderBy(desc(sql`COALESCE(${dailyStats.views}, 0)`))
+    .where(
+      and(
+        eq(videos.isActive, true),
+        or(
+          // Either has views today
+          sql`${dailyStats.views} > 0`,
+          // Or was created today
+          gte(videos.createdAt, todayStart)
+        )
+      )
+    )
+    .orderBy(
+      desc(sql`COALESCE(${dailyStats.views}, 0)`),
+      desc(videos.createdAt) // Secondary sort by creation time
+    )
     .limit(limit);
 
   return result.map((item, index) => ({

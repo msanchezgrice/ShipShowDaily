@@ -56,10 +56,9 @@ export default function Home() {
   });
 
   const { data: leaderboard = [] } = useQuery<any[]>({
-    queryKey: ["/api/simple-leaderboard", leaderboardSortBy],
+    queryKey: ["/api/leaderboard", leaderboardSortBy],
     queryFn: () => {
-      // Temporarily use simple-leaderboard endpoint
-      const url = `/api/simple-leaderboard`;
+      const url = `/api/leaderboard?sortBy=${leaderboardSortBy}&limit=10`;
       return fetch(url).then(async res => (res.ok ? res.json() : []));
     },
   });
