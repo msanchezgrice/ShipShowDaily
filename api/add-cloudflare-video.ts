@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         productUrl: productUrl || 'https://example.com',
         videoPath: `https://customer-59frtv9ixcqe1nv6.cloudflarestream.com/${uid}/manifest/video.m3u8`,
         thumbnailPath: `https://customer-59frtv9ixcqe1nv6.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=1s`,
-        creatorId: 'manual-upload',
+        creatorId: 'demo-user-1',
         provider: 'stream',
         provider_asset_id: uid,
         status: 'ready',
