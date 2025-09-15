@@ -22,10 +22,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const result = await db.execute(sql`SELECT * FROM users`);
       await client.end();
       
+      // Extract rows from the result
+      const rows = Array.isArray(result) ? result : result.rows || [];
+      
       return res.status(200).json({
         success: true,
-        count: result.rows.length,
-        users: result.rows
+        count: rows.length,
+        users: rows
       });
     }
     
@@ -42,9 +45,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       await client.end();
       
+      // Extract the first row from result
+      const rows = Array.isArray(result) ? result : result.rows || [];
+      
       return res.status(200).json({
         success: true,
-        user: result.rows[0]
+        user: rows[0] || null
       });
     }
     
