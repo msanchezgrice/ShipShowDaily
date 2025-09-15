@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 import { db } from '../_lib/db';
-import { videos } from '@shared/schema';
+import { videos } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 
 const WEBHOOK_SECRET = process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET;

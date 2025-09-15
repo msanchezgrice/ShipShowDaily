@@ -2,7 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth, sendUnauthorized } from '../_lib/auth';
 import { validateMethod, handleError, sendSuccess } from '../_lib/utils';
 import { db } from '../_lib/db';
-import { videos } from '@shared/schema';
+import { videos } from '../../shared/schema';
+import { eq } from 'drizzle-orm';
 
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const CLOUDFLARE_STREAM_API_TOKEN = process.env.CLOUDFLARE_STREAM_API_TOKEN;
@@ -151,6 +152,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return handleError(res, error, 'Failed to initialize video upload');
   }
 }
-
-// Import to fix TypeScript error
-import { eq } from 'drizzle-orm';
