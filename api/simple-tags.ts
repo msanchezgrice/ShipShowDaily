@@ -40,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       LIMIT 50
     `);
     
+    await client.end();
     return res.status(200).json(result.rows || []);
   } catch (error) {
     console.error("API Error:", error);

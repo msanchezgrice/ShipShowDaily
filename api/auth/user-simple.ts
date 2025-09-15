@@ -1,8 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClerkClient } from '@clerk/clerk-sdk-node';
-import { Pool } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { sql } from 'drizzle-orm';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -68,9 +65,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ message: "User not found in Clerk" });
     }
     
+    // Dynamic imports for database
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const postgres = (await import('postgres')).default;
+    const { sql } = await import('drizzle-orm');
+    
     // Create database connection
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const db = drizzle(pool);
+    const client = postgres(process.env.DATABASE_URL, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: 'require',
+      prepare: false,
+    });
+    const db = drizzle(client);
     
     const userEmail = clerkUser.emailAddresses?.[0]?.emailAddress || 
                      `${clerkUser.id}@placeholder.email`;
@@ -156,9 +164,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const user = result.rows[0];
     if (!user) {
+      await client.end();
       return res.status(404).json({ message: "User not found in database" });
     }
 
+    await client.end();
     return res.status(200).json(user);
   } catch (error: any) {
     console.error("API Error in /api/auth/user-simple:", error);
