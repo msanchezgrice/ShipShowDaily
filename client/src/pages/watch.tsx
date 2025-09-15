@@ -59,11 +59,6 @@ export default function Watch() {
     );
   }
 
-  // Ensure video exists before rendering
-  if (!video) {
-    return null;
-  }
-
   return (
     <>
       <Navigation />
@@ -79,9 +74,9 @@ export default function Watch() {
 
         {/* Video Player */}
         <div className="mb-6">
-          {(video?.videoPath || video?.hls_url) ? (
+          {video?.videoPath ? (
             <SimpleVideoPlayer
-              src={video?.hls_url || video?.videoPath}
+              src={video.videoPath}
               poster={video?.thumbnailPath || undefined}
               className="w-full"
             />
