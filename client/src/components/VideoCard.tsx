@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,6 +34,7 @@ interface VideoCardProps {
 
 export default function VideoCard({ video, position, onPlay, onTagClick }: VideoCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [, navigate] = useLocation();
 
   const getPositionBadge = () => {
     const colors = {
@@ -152,14 +154,20 @@ export default function VideoCard({ video, position, onPlay, onTagClick }: Video
         )}
         
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+          <div
+            className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/profile/${video.creator.id}`);
+            }}
+          >
             <Avatar className="h-6 w-6">
               <AvatarImage src={video.creator?.profileImageUrl || undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                 {getCreatorInitial()}
               </AvatarFallback>
             </Avatar>
-            <span className="text-sm text-muted-foreground">{getCreatorName()}</span>
+            <span className="text-sm text-muted-foreground hover:text-foreground">{getCreatorName()}</span>
           </div>
           
           <Button

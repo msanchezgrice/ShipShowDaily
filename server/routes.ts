@@ -135,6 +135,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User profile routes
+  app.get('/api/users/:userId', async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      // Return public user info only
+      res.json({
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+      });
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      res.status(500).json({ message: "Failed to fetch user profile" });
+    }
+  });
+
+  app.get('/api/users/:userId/videos', async (req, res) => {
+    try {
+      const videos = await storage.getUserVideosWithTags(req.params.userId);
+      res.json(videos);
+    } catch (error) {
+      console.error("Error fetching user videos:", error);
+      res.status(500).json({ message: "Failed to fetch user videos" });
+    }
+  });
+
   // Video routes
   app.get('/api/videos/top', async (req, res) => {
     try {
@@ -168,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         creatorId: userId,
       });
-      
+
       const video = await storage.createVideoWithTags(videoData);
       res.status(201).json(video);
     } catch (error) {
@@ -177,6 +207,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid video data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create video" });
+    }
+  });
+
+  // Cloudflare Stream init endpoint (creates video with metadata)
+  app.post('/api/videos/cloudflare-init-simple', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, description, productUrl, tags, maxDurationSeconds } = req.body;
+
+      // Create video record with tags
+      const videoData = {
+        title,
+        description,
+        productUrl,
+        videoPath: '',  // Will be updated when video is uploaded
+        creatorId: userId,
+        status: 'processing' as const,
+        isActive: true,
+        tags: tags || [],
+      };
+
+      const video = await storage.createVideoWithTags(videoData);
+
+      // For now, return a mock Cloudflare response
+      // In production, this would integrate with Cloudflare Stream API
+      res.json({
+        videoId: video.id,
+        uploadUrl: `https://upload.cloudflarestream.com/mock/${video.id}`,
+        uploadId: `mock-upload-${video.id}`,
+        provider: 'cloudflare',
+        maxDurationSeconds: maxDurationSeconds || 30,
+      });
+    } catch (error) {
+      console.error("Error initializing Cloudflare upload:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid video data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to initialize upload" });
     }
   });
 

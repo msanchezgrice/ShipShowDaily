@@ -1,3 +1,4 @@
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,7 @@ interface LeaderboardProps {
 }
 
 export default function Leaderboard({ items, sortBy = 'views', onSortChange }: LeaderboardProps) {
+  const [, navigate] = useLocation();
   const getPositionColor = (position: number) => {
     switch (position) {
       case 1:
@@ -158,42 +160,47 @@ export default function Leaderboard({ items, sortBy = 'views', onSortChange }: L
                 data-testid={`leaderboard-item-${item.position}`}
               >
                 <div className="flex items-center space-x-3">
-                  <Badge 
+                  <Badge
                     className={`${getPositionColor(item.position)} font-bold min-w-[2rem] justify-center`}
                   >
                     {item.position}
                     {item.position === 1 && <Crown className="ml-1 h-3 w-3" />}
                   </Badge>
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={item.creator?.profileImageUrl || undefined} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                      {getCreatorInitial(item.creator)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground text-sm">
-                      {getCreatorName(item.creator)}
-                    </p>
-                    <p className="text-xs text-muted-foreground line-clamp-1">
-                      {item.video.title}
-                    </p>
-                    {item.video.tags && item.video.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {item.video.tags.slice(0, 3).map((tag) => (
-                          <Badge
-                            key={tag.id}
-                            variant="secondary"
-                            className="text-xs px-1 py-0 h-4"
-                          >
-                            <Hash className="h-2 w-2 mr-0.5" />
-                            {tag.name}
-                          </Badge>
-                        ))}
-                        {item.video.tags.length > 3 && (
-                          <span className="text-xs text-muted-foreground">+{item.video.tags.length - 3} more</span>
-                        )}
-                      </div>
-                    )}
+                  <div
+                    className="flex items-center space-x-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => navigate(`/profile/${item.creator.id}`)}
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={item.creator?.profileImageUrl || undefined} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                        {getCreatorInitial(item.creator)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground text-sm hover:text-primary">
+                        {getCreatorName(item.creator)}
+                      </p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        {item.video.title}
+                      </p>
+                      {item.video.tags && item.video.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {item.video.tags.slice(0, 3).map((tag) => (
+                            <Badge
+                              key={tag.id}
+                              variant="secondary"
+                              className="text-xs px-1 py-0 h-4"
+                            >
+                              <Hash className="h-2 w-2 mr-0.5" />
+                              {tag.name}
+                            </Badge>
+                          ))}
+                          {item.video.tags.length > 3 && (
+                            <span className="text-xs text-muted-foreground">+{item.video.tags.length - 3} more</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">
