@@ -32,6 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       idle_timeout: 20,
       connect_timeout: 10,
       ssl: 'require',
+      prepare: false,
     });
     const db = drizzle(client);
     

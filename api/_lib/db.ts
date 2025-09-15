@@ -15,6 +15,7 @@ const sql = postgres(connectionString, {
   idle_timeout: 20,
   connect_timeout: 10,
   ssl: 'require', // Supabase requires SSL
+  prepare: false, // Disable prepared statements for serverless
 });
 
 export const db = drizzle(sql, { schema });
