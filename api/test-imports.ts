@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Test db import
     try {
-      const { db } = await import('./_lib/db');
+      const { db } = await import('./_lib/db.js');
       imports.push('db: success');
     } catch (e: any) {
       imports.push(`db: ${e.message}`);
@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Test schema import
     try {
-      const schema = await import('../shared/schema');
+      const schema = await import('../shared/schema.js');
       imports.push('schema: success');
     } catch (e: any) {
       imports.push(`schema: ${e.message}`);
@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Test auth import
     try {
-      const auth = await import('./_lib/auth');
+      const auth = await import('./_lib/auth.js');
       imports.push('auth: success');
     } catch (e: any) {
       imports.push(`auth: ${e.message}`);
@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Test storage import
     try {
-      const storage = await import('./_lib/storage');
+      const storage = await import('./_lib/storage.js');
       imports.push('storage: success');
     } catch (e: any) {
       imports.push(`storage: ${e.message}`);

@@ -121,7 +121,7 @@ const CloudflareUploader = React.forwardRef<
 
     try {
       // Step 1: Initialize upload with backend
-      const initResponse = await apiRequest('/api/videos/cloudflare-init', {
+      const initResponse = await apiRequest('/api/videos/cloudflare-init-simple', {
         method: 'POST',
         body: JSON.stringify({
           title,

@@ -1,8 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
-import { db } from '../_lib/db';
-import { videos } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
 
 const WEBHOOK_SECRET = process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET;
 
@@ -92,6 +89,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Dynamic imports for database
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const postgres = (await import('postgres')).default;
+    const { eq } = await import('drizzle-orm');
+    const { videos } = await import('../../shared/schema.js');
+    
+    // Create database connection
+    const client = postgres(process.env.DATABASE_URL!, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: 'require',
+      prepare: false,
+    });
+    const db = drizzle(client);
+
     // Parse webhook payload
     const payload: CloudflareWebhookPayload = typeof req.body === 'string' 
       ? JSON.parse(req.body) 
@@ -100,6 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { uid, readyToStream, status, playback, thumbnail, duration, input, meta } = payload;
 
     if (!uid) {
+      await client.end();
       return res.status(400).json({ error: 'Missing video UID' });
     }
 
@@ -115,16 +129,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Add playback URLs if provided
       if (playback?.hls) {
-        updateData.hls_url = playback.hls;
-      }
-      if (playback?.dash) {
-        updateData.dash_url = playback.dash;
+        updateData.videoPath = playback.hls;
       }
 
       // Generate fallback HLS URL if not provided
-      if (!updateData.hls_url) {
+      if (!updateData.videoPath) {
         // Use standard Cloudflare Stream URL pattern
-        updateData.hls_url = `https://videodelivery.net/${uid}/manifest/video.m3u8`;
+        updateData.videoPath = `https://customer-9ksvtbxydg4qnz1j.cloudflarestream.com/${uid}/manifest/video.m3u8`;
       }
 
       // Add thumbnail if provided
@@ -132,25 +143,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updateData.thumbnailPath = thumbnail;
       } else {
         // Generate default thumbnail URL
-        updateData.thumbnailPath = `https://videodelivery.net/${uid}/thumbnails/thumbnail.jpg`;
-      }
-
-      // Add video metadata
-      if (duration) {
-        updateData.duration_s = Math.round(duration);
-      }
-      if (input?.width) {
-        updateData.width = input.width;
-      }
-      if (input?.height) {
-        updateData.height = input.height;
+        updateData.thumbnailPath = `https://customer-9ksvtbxydg4qnz1j.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=1s`;
       }
 
       // Update video by provider_asset_id
       const result = await db
         .update(videos)
         .set(updateData)
-        .where(eq(videos.provider_asset_id, uid))
+        .where(eq(videos.providerAssetId, uid))
         .returning();
 
       if (result.length === 0) {
@@ -173,10 +173,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await db
         .update(videos)
         .set({
-          status: 'rejected',
+          status: 'failed',
           isActive: false,
         })
-        .where(eq(videos.provider_asset_id, uid));
+        .where(eq(videos.providerAssetId, uid));
 
       console.error(`Video ${uid} processing failed: ${errorMessage}`);
 
@@ -190,8 +190,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .set({
           status: 'processing',
         })
-        .where(eq(videos.provider_asset_id, uid));
+        .where(eq(videos.providerAssetId, uid));
     }
+
+    await client.end();
 
     // Return success response
     return res.status(200).json({ 
