@@ -1,21 +1,25 @@
 import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Navigation from "@/components/Navigation";
-import SimpleVideoPlayer from "@/components/SimpleVideoPlayer";
+import VideoPlayerWithTracking from "@/components/VideoPlayerWithTracking";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Calendar, ExternalLink, ArrowLeft } from "lucide-react";
+import { Eye, Calendar, ExternalLink, ArrowLeft, Heart } from "lucide-react";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Watch() {
   const [, params] = useRoute("/watch/:id");
   const videoId = params?.id;
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [isFavorited, setIsFavorited] = useState(false);
 
   // Fetch video details
-  const { data: video, isLoading, error } = useQuery({
+  const { data: video, isLoading, error } = useQuery<any>({
     queryKey: [`/api/videos/${videoId}`],
     enabled: !!videoId,
     retry: 2,
@@ -63,22 +67,27 @@ export default function Watch() {
     <>
       <Navigation />
       <main className="container max-w-4xl mx-auto px-4 py-8">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           className="mb-4"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/dashboard")}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
+          Back to Dashboard
         </Button>
 
         {/* Video Player */}
         <div className="mb-6">
           {video?.videoPath ? (
-            <SimpleVideoPlayer
+            <VideoPlayerWithTracking
               src={video.videoPath}
               poster={video?.thumbnailPath || undefined}
+              videoId={videoId}
               className="w-full"
+              onViewComplete={() => {
+                // Refresh video data to update view count
+                queryClient.invalidateQueries({ queryKey: [`/api/videos/${videoId}`] });
+              }}
             />
           ) : (
             <div className="bg-secondary rounded-lg aspect-video flex items-center justify-center">
@@ -112,15 +121,57 @@ export default function Watch() {
               <p className="text-foreground mb-6">{video.description}</p>
             )}
 
-            {video?.productUrl && (
-              <Button 
-                onClick={() => window.open(video.productUrl, '_blank')}
-                className="w-full sm:w-auto"
+            <div className="flex gap-2">
+              {video?.productUrl && (
+                <Button
+                  onClick={async () => {
+                    // Track demo link click
+                    try {
+                      await fetch(`/api/videos/${videoId}/demo-click`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                      });
+                    } catch (error) {
+                      console.error('Failed to track demo click:', error);
+                    }
+                    window.open(video.productUrl, '_blank');
+                  }}
+                  className="flex-1 sm:flex-none"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Visit Product
+                </Button>
+              )}
+              <Button
+                variant={isFavorited ? "default" : "outline"}
+                size="icon"
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`/api/videos/${videoId}/favorite`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' }
+                    });
+                    if (response.ok) {
+                      setIsFavorited(true);
+                      toast({
+                        title: "Added to favorites",
+                        description: "Video has been added to your favorites."
+                      });
+                    }
+                  } catch (error) {
+                    console.error('Failed to favorite video:', error);
+                    toast({
+                      title: "Error",
+                      description: "Failed to add to favorites. Please try again.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                disabled={isFavorited}
               >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Visit Product
+                <Heart className={`h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
               </Button>
-            )}
+            </div>
           </CardContent>
         </Card>
       </main>

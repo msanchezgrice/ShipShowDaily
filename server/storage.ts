@@ -421,9 +421,9 @@ export class DatabaseStorage implements IStorage {
     views: number;
   }>> {
     const today = new Date().toISOString().split('T')[0];
-    const todayStart = new Date(today);
+    const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    
+
     const result = await db
       .select({
         video: videos,
@@ -442,12 +442,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(videos.isActive, true),
-          or(
-            // Either has views today
-            sql`${dailyStats.views} > 0`,
-            // Or was created today
-            gte(videos.createdAt, todayStart)
-          )
+          gte(videos.createdAt, todayStart) // Show all videos created today
         )
       )
       .orderBy(
@@ -503,7 +498,12 @@ export class DatabaseStorage implements IStorage {
       )
       .leftJoin(videoFavorites, eq(videos.id, videoFavorites.videoId))
       .leftJoin(demoLinkClicks, eq(videos.id, demoLinkClicks.videoId))
-      .where(eq(videos.isActive, true));
+      .where(
+        and(
+          eq(videos.isActive, true),
+          gte(videos.createdAt, today) // Show all videos created today
+        )
+      );
 
     // Add tag filtering if specified
     if (tagFilter) {
@@ -775,7 +775,9 @@ export class DatabaseStorage implements IStorage {
 
   async getTopVideosTodayWithTags(limit = 10, tagFilter?: string): Promise<(Video & { creator: User; todayViews: number; tags: Tag[] })[]> {
     const today = new Date().toISOString().split('T')[0];
-    
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
     let query = db
       .select({
         video: videos,
@@ -791,7 +793,12 @@ export class DatabaseStorage implements IStorage {
           eq(dailyStats.date, today)
         )
       )
-      .where(eq(videos.isActive, true));
+      .where(
+        and(
+          eq(videos.isActive, true),
+          gte(videos.createdAt, todayStart) // Only show videos created today
+        )
+      );
 
     // Add tag filtering if specified
     if (tagFilter) {
