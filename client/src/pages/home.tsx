@@ -248,7 +248,24 @@ export default function Home() {
           {/* Sidebar */}
           <div className="space-y-6">
             <Leaderboard 
-              items={leaderboard} 
+              items={leaderboard.map((item, index) => ({
+                position: index + 1,
+                video: {
+                  id: item.id,
+                  title: item.title || '',
+                  tags: item.tags
+                },
+                creator: {
+                  id: item.creator?.id || item.creatorId || '',
+                  firstName: item.creator?.name?.split(' ')[0],
+                  lastName: item.creator?.name?.split(' ').slice(1).join(' '),
+                  email: item.creator?.name || '',
+                  profileImageUrl: item.creator?.profileImageUrl
+                },
+                views: item.totalViews || item.views || 0,
+                favorites: item.favorites || 0,
+                demoClicks: item.demoClicks || 0
+              }))} 
               sortBy={leaderboardSortBy}
               onSortChange={setLeaderboardSortBy}
             />
