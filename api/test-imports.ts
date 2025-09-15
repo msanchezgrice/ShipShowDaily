@@ -41,7 +41,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       success: true,
       imports,
       cwd: process.cwd(),
-      dirname: __dirname,
       env: {
         hasDatabase: !!process.env.DATABASE_URL,
         hasClerk: !!process.env.CLERK_SECRET_KEY,
