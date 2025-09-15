@@ -98,16 +98,20 @@ async function handleUserCreated(userData: any) {
   console.log('Creating user in database:', userData.id);
   
   try {
-    // Get primary email
-    const primaryEmail = userData.email_addresses.find(
-      email => email.id === userData.primary_email_address_id
-    ) || userData.email_addresses[0];
-
-    const userEmail = primaryEmail?.email_address;
+    // Get email from email_addresses array or use a fallback
+    let userEmail = null;
     
+    if (userData.email_addresses && userData.email_addresses.length > 0) {
+      const primaryEmail = userData.email_addresses.find(
+        email => email.id === userData.primary_email_address_id
+      ) || userData.email_addresses[0];
+      userEmail = primaryEmail?.email_address;
+    }
+    
+    // If no email, create a placeholder email
     if (!userEmail) {
-      console.error('No email found for user:', userData.id);
-      return;
+      console.log('No email found for user, using placeholder:', userData.id);
+      userEmail = `${userData.id}@placeholder.local`;
     }
 
     // Create user in database
@@ -118,7 +122,7 @@ async function handleUserCreated(userData: any) {
         email: userEmail,
         firstName: userData.first_name || '',
         lastName: userData.last_name || '',
-        profileImageUrl: userData.image_url || '',
+        profileImageUrl: userData.profile_image_url || userData.image_url || '',
         credits: 10, // Default credits for new users
         totalCreditsEarned: 0,
       })
@@ -128,7 +132,7 @@ async function handleUserCreated(userData: any) {
           email: userEmail,
           firstName: userData.first_name || '',
           lastName: userData.last_name || '',
-          profileImageUrl: userData.image_url || '',
+          profileImageUrl: userData.profile_image_url || userData.image_url || '',
           updatedAt: new Date(),
         },
       })
@@ -138,6 +142,7 @@ async function handleUserCreated(userData: any) {
     
   } catch (error: any) {
     console.error('Error creating user in database:', error);
+    throw error; // Re-throw to trigger webhook retry
   }
 }
 
@@ -145,34 +150,40 @@ async function handleUserUpdated(userData: any) {
   console.log('Updating user in database:', userData.id);
   
   try {
-    // Get primary email
-    const primaryEmail = userData.email_addresses.find(
-      email => email.id === userData.primary_email_address_id
-    ) || userData.email_addresses[0];
-
-    const userEmail = primaryEmail?.email_address;
+    // Get email from email_addresses array or use existing
+    let userEmail = null;
     
-    if (!userEmail) {
-      console.error('No email found for user:', userData.id);
-      return;
+    if (userData.email_addresses && userData.email_addresses.length > 0) {
+      const primaryEmail = userData.email_addresses.find(
+        email => email.id === userData.primary_email_address_id
+      ) || userData.email_addresses[0];
+      userEmail = primaryEmail?.email_address;
+    }
+
+    // Build update object conditionally
+    const updateData: any = {
+      firstName: userData.first_name || '',
+      lastName: userData.last_name || '',
+      profileImageUrl: userData.profile_image_url || userData.image_url || '',
+      updatedAt: new Date(),
+    };
+    
+    // Only update email if we have one
+    if (userEmail) {
+      updateData.email = userEmail;
     }
 
     // Update user in database
     await db
       .update(users)
-      .set({
-        email: userEmail,
-        firstName: userData.first_name || '',
-        lastName: userData.last_name || '',
-        profileImageUrl: userData.image_url || '',
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(users.id, userData.id));
 
     console.log('User updated in database:', userData.id);
     
   } catch (error: any) {
     console.error('Error updating user in database:', error);
+    throw error; // Re-throw to trigger webhook retry
   }
 }
 
