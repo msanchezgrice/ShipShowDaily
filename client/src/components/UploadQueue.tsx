@@ -100,7 +100,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
 
     try {
       // Step 1: Initialize upload with Cloudflare
-      const initResponse = await apiRequest('/api/videos/cloudflare-init', {
+      const initResponse = await apiRequest('/api/videos/cloudflare-init-simple', {
         method: 'POST',
         body: JSON.stringify({
           title: upload.title,
@@ -172,7 +172,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
       });
 
       // Start upload
-      xhr.open('POST', uploadUrl);
+      xhr.open('PUT', uploadUrl);
       xhr.send(upload.file);
 
       // Listen for abort signal
