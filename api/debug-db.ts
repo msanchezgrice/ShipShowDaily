@@ -47,9 +47,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     return res.status(200).json({
       success: true,
-      timestamp: result.rows?.[0]?.current_time || new Date().toISOString(),
+      timestamp: result[0]?.current_time || new Date().toISOString(),
       message: 'Database connection working',
-      rowCount: result.rows?.length || 0
+      rowCount: result?.length || 0
     });
     
   } catch (error: any) {

@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const result = await db.execute(sql`SELECT COUNT(*) as count FROM users`);
       userTableExists = true;
-      userCount = parseInt(result.rows?.[0]?.count || '0');
+      userCount = parseInt(result[0]?.count || '0');
     } catch (e) {
       // Table doesn't exist
     }
@@ -61,13 +61,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       success: true,
       database: {
-        current_database: dbInfo.rows?.[0]?.current_database,
-        current_schema: dbInfo.rows?.[0]?.current_schema,
-        version: dbInfo.rows?.[0]?.version?.split(' ')[0],
+        current_database: dbInfo[0]?.current_database,
+        current_schema: dbInfo[0]?.current_schema,
+        version: dbInfo[0]?.version?.split(' ')[0],
         host: urlParts?.[3] || 'unknown',
       },
-      schemas: schemas.rows?.map(r => r.schema_name) || [],
-      tables: tables.rows?.map(r => `${r.schemaname}.${r.tablename}`) || [],
+      schemas: schemas?.map(r => r.schema_name) || [],
+      tables: tables?.map(r => `${r.schemaname}.${r.tablename}`) || [],
       userTableExists,
       userCount,
     });

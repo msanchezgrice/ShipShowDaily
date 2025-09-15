@@ -50,9 +50,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Return simple stats
     const stats = {
       totalViews: 0,
-      totalDemos: parseInt(videoResult.rows[0]?.count as string || '0'),
+      totalDemos: parseInt(videoResult[0]?.count as string || '0'),
       totalCreditsEarned: 0,
-      activeUsers: parseInt(userResult.rows[0]?.count as string || '0')
+      activeUsers: parseInt(userResult[0]?.count as string || '0')
     };
     
     await client.end();

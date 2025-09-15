@@ -1,7 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Pool } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { sql } from 'drizzle-orm';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -25,9 +22,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: "DATABASE_URL not set" });
     }
 
-    // Create a simple connection
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const db = drizzle(pool);
+    // Dynamic imports for database
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const postgres = (await import('postgres')).default;
+    const { sql } = await import('drizzle-orm');
+    
+    // Create database connection
+    const client = postgres(process.env.DATABASE_URL, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: 'require',
+      prepare: false,
+    });
+    const db = drizzle(client);
 
     // Get all tags (simplified - without counts for now)
     const result = await db.execute(sql`
@@ -41,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `);
     
     await client.end();
-    return res.status(200).json(result.rows || []);
+    return res.status(200).json(result || []);
   } catch (error) {
     console.error("API Error:", error);
     return res.status(500).json({ message: "Failed to fetch tags" });

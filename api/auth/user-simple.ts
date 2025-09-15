@@ -88,8 +88,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       SELECT id FROM users WHERE id = ${clerkUser.id} OR email = ${userEmail} LIMIT 1
     `);
     
-    if (existingUserResult.rows.length > 0) {
-      const existingUser = existingUserResult.rows[0];
+    if (existingUserResult.length > 0) {
+      const existingUser = existingUserResult[0];
       
       // If user exists but with different ID (email match), update the ID
       if (existingUser.id !== clerkUser.id) {
@@ -162,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       LIMIT 1
     `);
 
-    const user = result.rows[0];
+    const user = result[0];
     if (!user) {
       await client.end();
       return res.status(404).json({ message: "User not found in database" });
