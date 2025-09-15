@@ -1,6 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Pool } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
 import { sql } from 'drizzle-orm';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -20,14 +18,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
   
+  let client;
+  
   try {
     if (!process.env.DATABASE_URL) {
       return res.status(500).json({ error: "DATABASE_URL not set" });
     }
 
-    // Create a simple connection
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const db = drizzle(pool);
+    // Dynamic import of postgres
+    const { Client } = await import('postgres');
+    client = Client(process.env.DATABASE_URL);
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const db = drizzle(client);
 
     // Simple direct SQL query
     const result = await db.execute(sql`
@@ -77,5 +79,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: error.message || "Failed to fetch leaderboard",
       details: error.toString()
     });
+  } finally {
+    // Close the connection
+    if (client) {
+      await client.end();
+    }
   }
 }

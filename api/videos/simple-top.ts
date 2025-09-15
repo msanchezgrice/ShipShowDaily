@@ -1,6 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Pool } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
 import { sql } from 'drizzle-orm';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -20,6 +18,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
   
+  let client;
+  
   try {
     if (!process.env.DATABASE_URL) {
       return res.status(500).json({ error: "DATABASE_URL not set" });
@@ -29,9 +29,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const limitParam = req.query?.limit;
     const limit = limitParam ? parseInt(limitParam as string, 10) : 3;
 
-    // Create a simple connection
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const db = drizzle(pool);
+    // Dynamic import of postgres
+    const { Client } = await import('postgres');
+    client = Client(process.env.DATABASE_URL);
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const db = drizzle(client);
 
     // Get top videos by total views
     const result = await db.execute(sql`
@@ -79,5 +81,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error("API Error:", error);
     return res.status(500).json({ message: "Failed to fetch top videos" });
+  } finally {
+    // Close the connection
+    if (client) {
+      await client.end();
+    }
   }
 }
