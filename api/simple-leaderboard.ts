@@ -26,8 +26,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Dynamic import of postgres
-    const { Client } = await import('postgres');
-    client = Client(process.env.DATABASE_URL);
+    const postgres = (await import('postgres')).default;
+    const { sql } = await import('drizzle-orm');
+    client = postgres(process.env.DATABASE_URL, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: 'require',
+      prepare: false,
+    });
     const { drizzle } = await import('drizzle-orm/postgres-js');
     const db = drizzle(client);
 
