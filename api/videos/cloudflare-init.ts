@@ -81,9 +81,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             maxDurationSeconds,
             requireSignedURLs: false, // Set to true for private videos
             allowedOrigins: [
-              'https://www.shipshow.io',
-              'https://shipshow.io',
-              'http://localhost:3000', // For development
+              'www.shipshow.io',
+              'shipshow.io',
+              'localhost:3000', // For development
             ],
             meta: {
               videoId: videoRow.id,
