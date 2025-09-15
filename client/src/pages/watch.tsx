@@ -18,6 +18,7 @@ export default function Watch() {
   const { data: video, isLoading, error } = useQuery({
     queryKey: [`/api/videos/${videoId}`],
     enabled: !!videoId,
+    retry: 2,
   });
 
   if (isLoading) {
