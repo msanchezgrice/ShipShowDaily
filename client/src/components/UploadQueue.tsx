@@ -103,16 +103,15 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
     try {
       // Step 1: Initialize upload with Cloudflare
       console.log('Initializing upload with Cloudflare...');
-      const initResponse = await apiRequest('/api/videos/cloudflare-init-simple', {
-        method: 'POST',
-        body: JSON.stringify({
-          title: upload.title,
-          description: upload.description,
-          productUrl: upload.productUrl,
-          tags: upload.tags,
-          maxDurationSeconds: 30,
-        }),
+      const response = await apiRequest('POST', '/api/videos/cloudflare-init-simple', {
+        title: upload.title,
+        description: upload.description,
+        productUrl: upload.productUrl,
+        tags: upload.tags,
+        maxDurationSeconds: 30,
       });
+      
+      const initResponse = await response.json();
 
       console.log('Init response:', initResponse);
       const { videoId, uploadUrl } = initResponse;
