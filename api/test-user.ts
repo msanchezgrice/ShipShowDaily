@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { drizzle } = await import('drizzle-orm/postgres-js');
     const postgres = (await import('postgres')).default;
     const { sql } = await import('drizzle-orm');
-    const { users } = await import('../shared/schema');
+    const { users } = await import('@shared/schema');
     
     const client = postgres(process.env.DATABASE_URL!, {
       max: 1,
