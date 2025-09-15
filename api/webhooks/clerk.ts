@@ -1,8 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Webhook } from 'svix';
-import { db } from '../_lib/db';
-import { users } from '@shared/schema';
-import { eq } from 'drizzle-orm';
 
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
@@ -98,6 +95,11 @@ async function handleUserCreated(userData: any) {
   console.log('Creating user in database:', userData.id);
   
   try {
+    // Dynamic imports
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const postgres = (await import('postgres')).default;
+    const { sql } = await import('drizzle-orm');
+    
     // Get email from email_addresses array or use a fallback
     let userEmail = null;
     
@@ -114,31 +116,33 @@ async function handleUserCreated(userData: any) {
       userEmail = `${userData.id}@placeholder.local`;
     }
 
-    // Create user in database
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        id: userData.id,
-        email: userEmail,
-        firstName: userData.first_name || '',
-        lastName: userData.last_name || '',
-        profileImageUrl: userData.profile_image_url || userData.image_url || '',
-        credits: 10, // Default credits for new users
-        totalCreditsEarned: 0,
-      })
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          email: userEmail,
-          firstName: userData.first_name || '',
-          lastName: userData.last_name || '',
-          profileImageUrl: userData.profile_image_url || userData.image_url || '',
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
+    // Create database connection
+    const client = postgres(process.env.DATABASE_URL!, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: 'require',
+      prepare: false,
+    });
+    const db = drizzle(client);
 
-    console.log('User created/updated in database:', newUser.id);
+    // Create user in database using raw SQL
+    const result = await db.execute(sql`
+      INSERT INTO users (id, email, first_name, last_name, profile_image_url, credits, total_credits_earned)
+      VALUES (${userData.id}, ${userEmail}, ${userData.first_name || ''}, ${userData.last_name || ''}, 
+              ${userData.profile_image_url || userData.image_url || ''}, 10, 0)
+      ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        first_name = EXCLUDED.first_name,
+        last_name = EXCLUDED.last_name,
+        profile_image_url = EXCLUDED.profile_image_url,
+        updated_at = NOW()
+      RETURNING *
+    `);
+
+    await client.end();
+
+    console.log('User created/updated in database:', userData.id);
     
   } catch (error: any) {
     console.error('Error creating user in database:', error);
@@ -150,6 +154,11 @@ async function handleUserUpdated(userData: any) {
   console.log('Updating user in database:', userData.id);
   
   try {
+    // Dynamic imports
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const postgres = (await import('postgres')).default;
+    const { sql } = await import('drizzle-orm');
+    
     // Get email from email_addresses array or use existing
     let userEmail = null;
     
@@ -160,24 +169,39 @@ async function handleUserUpdated(userData: any) {
       userEmail = primaryEmail?.email_address;
     }
 
-    // Build update object conditionally
-    const updateData: any = {
-      firstName: userData.first_name || '',
-      lastName: userData.last_name || '',
-      profileImageUrl: userData.profile_image_url || userData.image_url || '',
-      updatedAt: new Date(),
-    };
-    
-    // Only update email if we have one
+    // Create database connection
+    const client = postgres(process.env.DATABASE_URL!, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: 'require',
+      prepare: false,
+    });
+    const db = drizzle(client);
+
+    // Update user in database using raw SQL
     if (userEmail) {
-      updateData.email = userEmail;
+      await db.execute(sql`
+        UPDATE users 
+        SET email = ${userEmail},
+            first_name = ${userData.first_name || ''},
+            last_name = ${userData.last_name || ''},
+            profile_image_url = ${userData.profile_image_url || userData.image_url || ''},
+            updated_at = NOW()
+        WHERE id = ${userData.id}
+      `);
+    } else {
+      await db.execute(sql`
+        UPDATE users 
+        SET first_name = ${userData.first_name || ''},
+            last_name = ${userData.last_name || ''},
+            profile_image_url = ${userData.profile_image_url || userData.image_url || ''},
+            updated_at = NOW()
+        WHERE id = ${userData.id}
+      `);
     }
 
-    // Update user in database
-    await db
-      .update(users)
-      .set(updateData)
-      .where(eq(users.id, userData.id));
+    await client.end();
 
     console.log('User updated in database:', userData.id);
     
@@ -191,11 +215,30 @@ async function handleUserDeleted(userId: string) {
   console.log('Deleting user from database:', userId);
   
   try {
+    // Dynamic imports
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const postgres = (await import('postgres')).default;
+    const { sql } = await import('drizzle-orm');
+    
+    // Create database connection
+    const client = postgres(process.env.DATABASE_URL!, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: 'require',
+      prepare: false,
+    });
+    const db = drizzle(client);
+    
     // Note: This will cascade delete related records due to foreign key constraints
-    await db.delete(users).where(eq(users.id, userId));
+    await db.execute(sql`DELETE FROM users WHERE id = ${userId}`);
+    
+    await client.end();
+    
     console.log('User deleted from database:', userId);
     
   } catch (error: any) {
     console.error('Error deleting user from database:', error);
+    throw error; // Re-throw to trigger webhook retry
   }
 }
