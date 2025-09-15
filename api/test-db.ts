@@ -40,9 +40,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     return res.status(200).json({
       success: true,
-      timestamp: timeResult.rows[0]?.current_time,
-      tables: tablesResult.rows.map(row => row.table_name),
-      usersCount: parseInt(usersCount.rows[0]?.count || '0'),
+      timestamp: timeResult.rows?.[0]?.current_time || new Date().toISOString(),
+      tables: tablesResult.rows?.map(row => row.table_name) || [],
+      usersCount: parseInt(usersCount.rows?.[0]?.count || '0'),
       message: 'Database connection working'
     });
     
