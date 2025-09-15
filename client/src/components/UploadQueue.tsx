@@ -84,7 +84,8 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
 
       // Start the first pending upload
       const nextUpload = pendingUploads[0];
-      processUpload(nextUpload.id);
+      // Pass the upload object directly to avoid stale state
+      processUpload(nextUpload);
       
       return prev.map(upload => 
         upload.id === nextUpload.id 
@@ -94,12 +95,14 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
     });
   };
 
-  const processUpload = async (uploadId: string) => {
-    const upload = uploads.find(u => u.id === uploadId);
+  const processUpload = async (upload: UploadItem) => {
     if (!upload) return;
+    
+    console.log('Processing upload:', upload);
 
     try {
       // Step 1: Initialize upload with Cloudflare
+      console.log('Initializing upload with Cloudflare...');
       const initResponse = await apiRequest('/api/videos/cloudflare-init-simple', {
         method: 'POST',
         body: JSON.stringify({
@@ -111,18 +114,19 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
         }),
       });
 
+      console.log('Init response:', initResponse);
       const { videoId, uploadUrl } = initResponse;
 
       // Update with video ID
       setUploads(prev => prev.map(u => 
-        u.id === uploadId ? { ...u, videoId } : u
+        u.id === upload.id ? { ...u, videoId } : u
       ));
 
       // Step 2: Upload file to Cloudflare
       const controller = new AbortController();
       
       setUploads(prev => prev.map(u => 
-        u.id === uploadId 
+        u.id === upload.id 
           ? { ...u, uploadController: controller }
           : u
       ));
@@ -134,7 +138,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
         if (e.lengthComputable) {
           const progress = Math.round((e.loaded / e.total) * 100);
           setUploads(prev => prev.map(u => 
-            u.id === uploadId ? { ...u, progress } : u
+            u.id === upload.id ? { ...u, progress } : u
           ));
         }
       });
@@ -143,7 +147,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
       xhr.addEventListener('load', () => {
         if (xhr.status === 200) {
           setUploads(prev => prev.map(u => 
-            u.id === uploadId 
+            u.id === upload.id 
               ? { ...u, status: 'processing', progress: 100 }
               : u
           ));
@@ -165,7 +169,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
       // Handle abort
       xhr.addEventListener('abort', () => {
         setUploads(prev => prev.map(u => 
-          u.id === uploadId 
+          u.id === upload.id 
             ? { ...u, status: 'paused' }
             : u
         ));
@@ -181,8 +185,9 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
       });
 
     } catch (error: any) {
+      console.error('Upload error:', error);
       setUploads(prev => prev.map(u => 
-        u.id === uploadId 
+        u.id === upload.id 
           ? { ...u, status: 'error', error: error.message }
           : u
       ));
