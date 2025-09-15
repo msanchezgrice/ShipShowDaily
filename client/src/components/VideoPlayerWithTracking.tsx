@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Play, Pause, Loader2 } from "lucide-react";
 import Hls from "hls.js";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useAuth } from "@clerk/clerk-react";
 
 interface VideoPlayerWithTrackingProps {
   src: string;
@@ -31,23 +31,37 @@ export default function VideoPlayerWithTracking({
   const viewDurationRef = useRef(0);
   const lastUpdateRef = useRef(0);
   const { isSignedIn } = useUser();
+  const { getToken } = useAuth();
 
   // Start viewing session when video starts playing
   const startViewTracking = async () => {
-    if (!videoId || !isSignedIn || hasStartedTracking) return;
+    if (!videoId || !isSignedIn || hasStartedTracking) {
+      console.log('Skipping view tracking:', { videoId, isSignedIn, hasStartedTracking });
+      return;
+    }
 
     try {
+      console.log(`Starting view tracking for video ${videoId}`);
+      const token = await getToken({ template: "__session" });
+
       const response = await fetch(`/api/videos/${videoId}/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log('View tracking started:', data);
         setViewingSessionId(data.sessionId);
         setHasStartedTracking(true);
         lastUpdateRef.current = Date.now();
         onViewStart?.();
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to start view tracking:', response.status, errorText);
       }
     } catch (error) {
       console.error("Failed to start view tracking:", error);
@@ -56,21 +70,34 @@ export default function VideoPlayerWithTracking({
 
   // Complete viewing session
   const completeViewTracking = async () => {
-    if (!viewingSessionId || !videoId || !isSignedIn) return;
+    if (!viewingSessionId || !videoId || !isSignedIn) {
+      console.log('Skipping view complete:', { viewingSessionId, videoId, isSignedIn });
+      return;
+    }
 
     try {
+      console.log(`Completing view tracking for video ${videoId}, session ${viewingSessionId}`);
+      const token = await getToken({ template: "__session" });
+
       const response = await fetch(`/api/videos/${videoId}/complete`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
         body: JSON.stringify({ sessionId: viewingSessionId }),
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log('View tracking completed:', data);
         onViewComplete?.();
         if (data.creditAwarded) {
           console.log("Credit earned for watching!");
         }
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to complete view tracking:', response.status, errorText);
       }
     } catch (error) {
       console.error("Failed to complete view tracking:", error);

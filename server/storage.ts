@@ -562,15 +562,19 @@ export class DatabaseStorage implements IStorage {
 
   // Video viewing session operations (secure)
   async startVideoViewing(userId: string, videoId: string): Promise<VideoViewingSession> {
+    console.log(`[STORAGE] Starting video viewing for user ${userId}, video ${videoId}`);
+
     // Check if user already has an active session for this video
     const existingSession = await this.getActiveVideoViewingSession(userId, videoId);
     if (existingSession) {
+      console.log(`[STORAGE] Returning existing session: ${existingSession.id}`);
       return existingSession;
     }
 
     // Check if user already viewed this video today
     const hasViewed = await this.hasUserViewedVideoToday(userId, videoId);
     if (hasViewed) {
+      console.log(`[STORAGE] User already viewed video today`);
       throw new Error("Video already viewed today");
     }
 
@@ -581,11 +585,14 @@ export class DatabaseStorage implements IStorage {
         videoId,
       })
       .returning();
-    
+
+    console.log(`[STORAGE] Created new session: ${session.id}`);
     return session;
   }
 
   async completeVideoViewing(sessionId: string): Promise<{ session: VideoViewingSession; creditAwarded: boolean }> {
+    console.log(`[STORAGE] Completing viewing session: ${sessionId}`);
+
     // Get the viewing session
     const [session] = await db
       .select()
@@ -593,10 +600,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(videoViewingSessions.id, sessionId));
 
     if (!session) {
+      console.error(`[STORAGE] Session not found: ${sessionId}`);
       throw new Error("Viewing session not found");
     }
 
     if (session.isCompleted) {
+      console.log(`[STORAGE] Session already completed: ${sessionId}`);
       throw new Error("Session already completed");
     }
 
@@ -605,8 +614,10 @@ export class DatabaseStorage implements IStorage {
     const startTime = session.startedAt ? new Date(session.startedAt) : new Date();
     const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
 
-    // Check if minimum watch time has been met (30 seconds)
-    const completedMinimum = elapsedSeconds >= 30;
+    console.log(`[STORAGE] Session ${sessionId} elapsed time: ${elapsedSeconds} seconds`);
+
+    // Check if minimum watch time has been met (10 seconds to match client)
+    const completedMinimum = elapsedSeconds >= 10;
 
     // Mark session as completed
     const [updatedSession] = await db
@@ -621,10 +632,14 @@ export class DatabaseStorage implements IStorage {
     let creditAwarded = false;
 
     if (completedMinimum) {
+      console.log(`[STORAGE] Minimum watch time met for session ${sessionId}`);
+
       // Check if user already earned credit for this video today (double-check)
       const hasViewedToday = await this.hasUserViewedVideoToday(session.userId, session.videoId);
-      
+
       if (!hasViewedToday) {
+        console.log(`[STORAGE] Recording view and awarding credit for session ${sessionId}`);
+
         // Record the video view
         await this.recordVideoView({
           videoId: session.videoId,
@@ -649,7 +664,12 @@ export class DatabaseStorage implements IStorage {
         await this.updateDailyStats(session.videoId, 1);
 
         creditAwarded = true;
+        console.log(`[STORAGE] View recorded and credit awarded for session ${sessionId}`);
+      } else {
+        console.log(`[STORAGE] User already viewed video today, no credit awarded for session ${sessionId}`);
       }
+    } else {
+      console.log(`[STORAGE] Minimum watch time NOT met (${elapsedSeconds}s < 10s) for session ${sessionId}`);
     }
 
     return {

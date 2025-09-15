@@ -221,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title,
         description,
         productUrl,
-        videoPath: '',  // Will be updated when video is uploaded
+        videoPath: `/cloudflare/${Date.now()}_${title.replace(/\s+/g, '_').toLowerCase()}`,  // Placeholder path for Cloudflare videos
         creatorId: userId,
         status: 'processing' as const,
         isActive: true,
@@ -299,16 +299,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const videoId = req.params.id;
-      
+
+      console.log(`[VIEW START] User ${userId} starting view for video ${videoId}`);
+
       // Start a viewing session (this handles all validation)
       const session = await storage.startVideoViewing(userId, videoId);
 
-      res.json({ 
+      console.log(`[VIEW START] Session created: ${session.id}`);
+
+      res.json({
         sessionId: session.id,
-        message: "Video viewing session started" 
+        message: "Video viewing session started"
       });
     } catch (error: any) {
-      console.error("Error starting video viewing:", error);
+      console.error("[VIEW START] Error starting video viewing:", error);
       if (error.message === "Video already viewed today") {
         return res.status(400).json({ message: error.message });
       }
@@ -322,20 +326,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const videoId = req.params.id;
       const { sessionId } = req.body;
 
+      console.log(`[VIEW COMPLETE] User ${userId} completing view for video ${videoId}, session ${sessionId}`);
+
       if (!sessionId) {
+        console.error("[VIEW COMPLETE] No session ID provided");
         return res.status(400).json({ message: "Session ID is required" });
       }
 
       // Complete the viewing session (server validates timing)
       const result = await storage.completeVideoViewing(sessionId);
 
-      res.json({ 
+      console.log(`[VIEW COMPLETE] Session completed:`, {
+        creditAwarded: result.creditAwarded,
+        sessionId: sessionId
+      });
+
+      res.json({
         creditAwarded: result.creditAwarded,
         watchDuration: result.session.completedAt && result.session.startedAt ? Math.floor((new Date(result.session.completedAt).getTime() - new Date(result.session.startedAt).getTime()) / 1000) : 0,
         message: result.creditAwarded ? "Credit earned!" : "Session completed, minimum watch time not met"
       });
     } catch (error: any) {
-      console.error("Error completing video viewing:", error);
+      console.error("[VIEW COMPLETE] Error completing video viewing:", error);
       if (error.message === "Viewing session not found" || error.message === "Session already completed") {
         return res.status(400).json({ message: error.message });
       }
@@ -349,15 +361,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const videoId = req.params.id;
 
+      console.log(`[FAVORITE] User ${userId} favoriting video ${videoId}`);
+
       // Check if video exists
       const video = await storage.getVideo(videoId);
       if (!video) {
+        console.error(`[FAVORITE] Video not found: ${videoId}`);
         return res.status(404).json({ message: "Video not found" });
       }
 
       // Check if already favorited
       const isAlreadyFavorited = await storage.isVideoFavorited(userId, videoId);
       if (isAlreadyFavorited) {
+        console.log(`[FAVORITE] Video already favorited by user ${userId}`);
         return res.status(400).json({ message: "Video already favorited" });
       }
 
@@ -366,13 +382,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         videoId,
       });
 
-      res.json({ 
-        success: true, 
+      console.log(`[FAVORITE] Video favorited successfully: ${favorite.id}`);
+
+      res.json({
+        success: true,
         message: "Video added to favorites",
-        favoriteId: favorite.id 
+        favoriteId: favorite.id
       });
     } catch (error) {
-      console.error("Error favoriting video:", error);
+      console.error("[FAVORITE] Error favoriting video:", error);
       res.status(500).json({ message: "Failed to favorite video" });
     }
   });
@@ -382,9 +400,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const videoId = req.params.id;
 
+      console.log(`[DEMO CLICK] User ${userId} clicking demo link for video ${videoId}`);
+
       // Check if video exists
       const video = await storage.getVideo(videoId);
       if (!video) {
+        console.error(`[DEMO CLICK] Video not found: ${videoId}`);
         return res.status(404).json({ message: "Video not found" });
       }
 
@@ -393,13 +414,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         videoId,
       });
 
-      res.json({ 
-        success: true, 
+      console.log(`[DEMO CLICK] Demo link click recorded: ${click.id}`);
+
+      res.json({
+        success: true,
         message: "Demo link click recorded",
-        clickId: click.id 
+        clickId: click.id
       });
     } catch (error) {
-      console.error("Error recording demo link click:", error);
+      console.error("[DEMO CLICK] Error recording demo link click:", error);
       res.status(500).json({ message: "Failed to record demo link click" });
     }
   });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/clerk-react";
 import Navigation from "@/components/Navigation";
 import VideoPlayerWithTracking from "@/components/VideoPlayerWithTracking";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ export default function Watch() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { getToken } = useAuth();
   const [isFavorited, setIsFavorited] = useState(false);
 
   // Fetch video details
@@ -127,10 +129,19 @@ export default function Watch() {
                   onClick={async () => {
                     // Track demo link click
                     try {
-                      await fetch(`/api/videos/${videoId}/demo-click`, {
+                      const token = await getToken({ template: "__session" });
+                      const response = await fetch(`/api/videos/${videoId}/demo-click`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': token ? `Bearer ${token}` : '',
+                        }
                       });
+                      if (response.ok) {
+                        console.log('Demo link click tracked');
+                      } else {
+                        console.error('Failed to track demo click:', response.status);
+                      }
                     } catch (error) {
                       console.error('Failed to track demo click:', error);
                     }
@@ -147,15 +158,27 @@ export default function Watch() {
                 size="icon"
                 onClick={async () => {
                   try {
+                    const token = await getToken({ template: "__session" });
                     const response = await fetch(`/api/videos/${videoId}/favorite`, {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' }
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token ? `Bearer ${token}` : '',
+                      }
                     });
                     if (response.ok) {
                       setIsFavorited(true);
                       toast({
                         title: "Added to favorites",
                         description: "Video has been added to your favorites."
+                      });
+                    } else {
+                      const error = await response.text();
+                      console.error('Failed to favorite video:', response.status, error);
+                      toast({
+                        title: "Error",
+                        description: response.status === 401 ? "Please sign in to favorite videos" : "Failed to add to favorites",
+                        variant: "destructive"
                       });
                     }
                   } catch (error) {
