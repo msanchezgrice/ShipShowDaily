@@ -126,6 +126,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: 'ready',
         isActive: true, // Activate the video
       };
+      
+      // Check if this is a manual upload without a videoId in metadata
+      const isManualUpload = !meta?.videoId;
 
       // Add playback URLs if provided
       if (playback?.hls) {
@@ -146,21 +149,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updateData.thumbnailPath = `https://customer-9ksvtbxydg4qnz1j.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=1s`;
       }
 
-      // Update video by provider_asset_id
-      const result = await db
-        .update(videos)
-        .set(updateData)
-        .where(eq(videos.provider_asset_id, uid))
-        .returning();
-
-      if (result.length === 0) {
-        console.error(`Video not found for UID: ${uid}`);
-        // Try updating by meta.videoId if provided
-        if (meta?.videoId) {
+      if (isManualUpload) {
+        // This is a manual upload from Cloudflare dashboard
+        // Create a new video entry with demo-user-1 as creator
+        console.log(`Creating new video entry for manual upload: ${uid}`);
+        
+        try {
+          await db
+            .insert(videos)
+            .values({
+              title: `Manual Upload ${uid.substring(0, 8)}`,
+              description: 'Video uploaded via Cloudflare dashboard',
+              productUrl: 'https://example.com',
+              videoPath: updateData.videoPath || '',
+              thumbnailPath: updateData.thumbnailPath || '',
+              creatorId: 'demo-user-1', // Use demo user for manual uploads
+              provider: 'stream',
+              provider_asset_id: uid,
+              status: 'ready',
+              isActive: true,
+            });
+          
+          console.log(`Created video entry for manual upload: ${uid}`);
+        } catch (insertError: any) {
+          // Video might already exist, try updating instead
+          console.log(`Video might already exist, trying update for: ${uid}`);
           await db
             .update(videos)
             .set(updateData)
-            .where(eq(videos.id, meta.videoId));
+            .where(eq(videos.provider_asset_id, uid));
+        }
+      } else {
+        // Normal flow - update existing video
+        const result = await db
+          .update(videos)
+          .set(updateData)
+          .where(eq(videos.provider_asset_id, uid))
+          .returning();
+
+        if (result.length === 0) {
+          console.error(`Video not found for UID: ${uid}`);
+          // Try updating by meta.videoId if provided
+          if (meta?.videoId) {
+            await db
+              .update(videos)
+              .set(updateData)
+              .where(eq(videos.id, meta.videoId));
+          }
         }
       }
 
