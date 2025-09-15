@@ -57,6 +57,11 @@ export default function Watch() {
     );
   }
 
+  // Ensure video exists before rendering
+  if (!video) {
+    return null;
+  }
+
   return (
     <>
       <Navigation />
@@ -75,7 +80,7 @@ export default function Watch() {
           {video.videoPath ? (
             <VideoPlayer
               src={video.videoPath}
-              poster={video.thumbnailPath}
+              poster={video.thumbnailPath || undefined}
               className="w-full rounded-lg overflow-hidden"
             />
           ) : (
@@ -88,7 +93,7 @@ export default function Watch() {
         {/* Video Info */}
         <Card>
           <CardContent className="p-6">
-            <h1 className="text-2xl font-bold mb-2">{video.title}</h1>
+            <h1 className="text-2xl font-bold mb-2">{video.title || 'Untitled'}</h1>
             
             <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
               <span className="flex items-center">
@@ -97,7 +102,7 @@ export default function Watch() {
               </span>
               <span className="flex items-center">
                 <Calendar className="mr-1 h-4 w-4" />
-                {new Date(video.createdAt).toLocaleDateString()}
+                {video.createdAt ? new Date(video.createdAt).toLocaleDateString() : 'N/A'}
               </span>
               {video.status === 'processing' && (
                 <Badge variant="outline" className="text-yellow-600">
