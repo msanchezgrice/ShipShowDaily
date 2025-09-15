@@ -122,6 +122,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
       ));
 
       // Step 2: Upload file to Cloudflare
+      console.log('Starting upload to:', uploadUrl);
       const controller = new AbortController();
       
       setUploads(prev => prev.map(u => 
@@ -130,57 +131,31 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
           : u
       ));
 
-      const xhr = new XMLHttpRequest();
+      // Use fetch instead of XMLHttpRequest to avoid CORS preflight
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        body: upload.file,
+        signal: controller.signal,
+        // Don't set any headers to avoid CORS preflight
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Upload failed: ${uploadResponse.status} ${errorText}`);
+      }
+
+      console.log('Upload complete, video is processing...');
       
-      // Track upload progress
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const progress = Math.round((e.loaded / e.total) * 100);
-          setUploads(prev => prev.map(u => 
-            u.id === upload.id ? { ...u, progress } : u
-          ));
-        }
-      });
-
-      // Handle completion
-      xhr.addEventListener('load', () => {
-        if (xhr.status === 200) {
-          setUploads(prev => prev.map(u => 
-            u.id === upload.id 
-              ? { ...u, status: 'processing', progress: 100 }
-              : u
-          ));
-          
-          toast({
-            title: "Upload complete!",
-            description: `${upload.file.name} is processing...`,
-          });
-        } else {
-          throw new Error(`Upload failed with status ${xhr.status}`);
-        }
-      });
-
-      // Handle errors
-      xhr.addEventListener('error', () => {
-        throw new Error('Upload failed');
-      });
-
-      // Handle abort
-      xhr.addEventListener('abort', () => {
-        setUploads(prev => prev.map(u => 
-          u.id === upload.id 
-            ? { ...u, status: 'paused' }
-            : u
-        ));
-      });
-
-      // Start upload
-      xhr.open('PUT', uploadUrl);
-      xhr.send(upload.file);
-
-      // Listen for abort signal
-      controller.signal.addEventListener('abort', () => {
-        xhr.abort();
+      // Upload successful
+      setUploads(prev => prev.map(u => 
+        u.id === upload.id 
+          ? { ...u, status: 'processing', progress: 100 }
+          : u
+      ));
+      
+      toast({
+        title: "Upload complete!",
+        description: `${upload.file.name} is processing...`,
       });
 
     } catch (error: any) {
