@@ -137,16 +137,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Generate fallback HLS URL if not provided
       if (!updateData.videoPath) {
-        // Use standard Cloudflare Stream URL pattern
-        updateData.videoPath = `https://customer-9ksvtbxydg4qnz1j.cloudflarestream.com/${uid}/manifest/video.m3u8`;
+        // Use standard Cloudflare Stream URL pattern with correct subdomain
+        updateData.videoPath = `https://customer-59frtv9ixcqe1nv6.cloudflarestream.com/${uid}/manifest/video.m3u8`;
       }
 
       // Add thumbnail if provided
       if (thumbnail) {
         updateData.thumbnailPath = thumbnail;
       } else {
-        // Generate default thumbnail URL
-        updateData.thumbnailPath = `https://customer-9ksvtbxydg4qnz1j.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=1s`;
+        // Generate default thumbnail URL with correct subdomain
+        updateData.thumbnailPath = `https://customer-59frtv9ixcqe1nv6.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=1s`;
       }
 
       if (isManualUpload) {
@@ -161,8 +161,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               title: `Manual Upload ${uid.substring(0, 8)}`,
               description: 'Video uploaded via Cloudflare dashboard',
               productUrl: 'https://example.com',
-              videoPath: updateData.videoPath || '',
-              thumbnailPath: updateData.thumbnailPath || '',
+              videoPath: updateData.videoPath || `https://customer-59frtv9ixcqe1nv6.cloudflarestream.com/${uid}/manifest/video.m3u8`,
+              thumbnailPath: updateData.thumbnailPath || `https://customer-59frtv9ixcqe1nv6.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg`,
               creatorId: 'demo-user-1', // Use demo user for manual uploads
               provider: 'stream',
               provider_asset_id: uid,

@@ -52,9 +52,10 @@ export default function Dashboard() {
     }
   }, [isAuthenticated, isLoading, toast, navigate]);
 
-  const { data: userVideos = [] } = useQuery<any[]>({
+  const { data: userVideos = [], refetch: refetchVideos } = useQuery<any[]>({
     queryKey: ["/api/user/videos"],
     enabled: isAuthenticated,
+    refetchInterval: 5000, // Refresh every 5 seconds
   });
 
   const { data: creditTransactions = [] } = useQuery<any[]>({

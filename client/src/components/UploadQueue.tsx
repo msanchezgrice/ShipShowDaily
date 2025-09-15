@@ -191,6 +191,15 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
         title: "Upload complete!",
         description: `${upload.file.name} is processing...`,
       });
+      
+      // Wait a bit for processing to start, then mark as complete
+      setTimeout(() => {
+        setUploads(prev => prev.map(u => 
+          u.id === upload.id 
+            ? { ...u, status: 'complete' }
+            : u
+        ));
+      }, 3000);
 
     } catch (error: any) {
       console.error('Upload error:', error);
