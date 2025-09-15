@@ -9,23 +9,11 @@ const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 // Clerk webhook event types
 interface ClerkWebhookEvent {
   type: string;
-  data: {
-    id: string;
-    object: string;
-    email_addresses: Array<{
-      id: string;
-      email_address: string;
-      verification?: {
-        status: string;
-      };
-    }>;
-    first_name?: string;
-    last_name?: string;
-    image_url?: string;
-    primary_email_address_id?: string;
-    created_at: number;
-    updated_at: number;
-  };
+  data: any; // Clerk sends different data structures for different events
+  event_attributes?: any;
+  instance_id?: string;
+  object: string;
+  timestamp: number;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -69,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Invalid signature' });
     }
 
-    console.log(`Clerk webhook received: ${evt.type} for user ${evt.data.id}`);
+    console.log(`Clerk webhook received: ${evt.type}`);
 
     // Handle different event types
     switch (evt.type) {
@@ -83,6 +71,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       case 'user.deleted':
         await handleUserDeleted(evt.data.id);
+        break;
+
+      case 'session.created':
+      case 'email.created':
+        // These events don't require database updates
+        console.log(`Received ${evt.type} event, no action needed`);
         break;
 
       default:
@@ -100,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-async function handleUserCreated(userData: ClerkWebhookEvent['data']) {
+async function handleUserCreated(userData: any) {
   console.log('Creating user in database:', userData.id);
   
   try {
@@ -147,7 +141,7 @@ async function handleUserCreated(userData: ClerkWebhookEvent['data']) {
   }
 }
 
-async function handleUserUpdated(userData: ClerkWebhookEvent['data']) {
+async function handleUserUpdated(userData: any) {
   console.log('Updating user in database:', userData.id);
   
   try {
