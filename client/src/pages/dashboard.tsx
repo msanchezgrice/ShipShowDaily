@@ -21,7 +21,9 @@ import {
   Calendar,
   BarChart3,
   Upload,
-  Award
+  Award,
+  Play,
+  ExternalLink
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -222,14 +224,31 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   userVideos.map((video: any) => (
-                    <div key={video.id} className="bg-secondary rounded-lg p-4" data-testid={`video-card-${video.id}`}>
+                    <div key={video.id} className="bg-secondary rounded-lg p-4 hover:bg-secondary/80 transition-colors" data-testid={`video-card-${video.id}`}>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-16 h-16 bg-primary/20 rounded-lg flex items-center justify-center">
-                            <Video className="text-primary h-6 w-6" />
+                        <div className="flex items-center space-x-4 flex-1">
+                          <div className="relative w-20 h-20 bg-primary/20 rounded-lg flex items-center justify-center overflow-hidden cursor-pointer group" 
+                               onClick={() => window.open(video.productUrl, '_blank')}>
+                            {video.thumbnailPath ? (
+                              <>
+                                <img 
+                                  src={video.thumbnailPath} 
+                                  alt={video.title}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Play className="text-white h-8 w-8" />
+                                </div>
+                              </>
+                            ) : (
+                              <Video className="text-primary h-6 w-6" />
+                            )}
                           </div>
-                          <div>
-                            <h4 className="font-medium text-foreground">{video.title}</h4>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-foreground hover:text-primary cursor-pointer" 
+                                onClick={() => window.open(video.productUrl, '_blank')}>
+                              {video.title}
+                            </h4>
                             <p className="text-sm text-muted-foreground">
                               {new Date(video.createdAt).toLocaleDateString()}
                             </p>
@@ -241,10 +260,26 @@ export default function Dashboard() {
                               <Badge variant="secondary">
                                 {video.todayViews} today
                               </Badge>
+                              {video.status === 'processing' && (
+                                <Badge variant="outline" className="text-yellow-600">
+                                  Processing...
+                                </Badge>
+                              )}
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="flex gap-2">
+                          {video.status === 'ready' && video.videoPath && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(`/watch/${video.id}`, '_blank')}
+                              data-testid={`button-watch-${video.id}`}
+                            >
+                              <Play className="mr-2 h-3 w-3" />
+                              Watch
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             className="bg-primary text-primary-foreground"

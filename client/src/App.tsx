@@ -11,6 +11,7 @@ import SubmitDemo from "@/pages/submit-demo";
 import Dashboard from "@/pages/dashboard";
 import Settings from "@/pages/settings";
 import Feed from "@/pages/feed";
+import Watch from "@/pages/watch";
 import PaymentComplete from "@/pages/payment-complete";
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -85,6 +86,7 @@ function Router() {
         <Route path="/submit-demo" component={SubmitDemo} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/settings" component={Settings} />
+        <Route path="/watch/:id" component={Watch} />
         <Route component={NotFound} />
       </Switch>
     </>
