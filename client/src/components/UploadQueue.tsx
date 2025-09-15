@@ -131,20 +131,54 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
           : u
       ));
 
-      // Use fetch instead of XMLHttpRequest to avoid CORS preflight
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        body: upload.file,
-        signal: controller.signal,
-        // Don't set any headers to avoid CORS preflight
+      // Create FormData and append the file
+      const formData = new FormData();
+      formData.append('file', upload.file);
+      
+      // For progress tracking, we need to use XMLHttpRequest
+      const xhr = new XMLHttpRequest();
+      
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const progress = Math.round((e.loaded / e.total) * 100);
+          setUploads(prev => prev.map(u => 
+            u.id === upload.id ? { ...u, progress } : u
+          ));
+        }
       });
 
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(`Upload failed: ${uploadResponse.status} ${errorText}`);
-      }
+      // Create a promise to handle the upload
+      const uploadPromise = new Promise<void>((resolve, reject) => {
+        xhr.addEventListener('load', () => {
+          if (xhr.status === 200 || xhr.status === 201) {
+            console.log('Upload complete, video is processing...');
+            resolve();
+          } else {
+            reject(new Error(`Upload failed: ${xhr.status} ${xhr.responseText}`));
+          }
+        });
 
-      console.log('Upload complete, video is processing...');
+        xhr.addEventListener('error', () => {
+          reject(new Error('Upload failed - network error'));
+        });
+
+        xhr.addEventListener('abort', () => {
+          reject(new Error('Upload cancelled'));
+        });
+      });
+
+      // Start the upload
+      xhr.open('POST', uploadUrl);
+      xhr.send(formData);
+
+      // Handle abort
+      controller.signal.addEventListener('abort', () => {
+        xhr.abort();
+      });
+
+      // Wait for upload to complete
+      await uploadPromise;
       
       // Upload successful
       setUploads(prev => prev.map(u => 
