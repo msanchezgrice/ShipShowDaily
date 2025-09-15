@@ -1,30 +1,43 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Pool } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
+import { db } from './_lib/db';
 import { sql } from 'drizzle-orm';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   try {
-    if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: "DATABASE_URL not set" });
-    }
-
-    // Create a simple connection without WebSocket config
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const db = drizzle(pool);
-
-    // Test simple query
-    const result = await db.execute(sql`SELECT COUNT(*) as count FROM videos`);
+    // Test basic connection
+    const timeResult = await db.execute(sql`SELECT NOW() as current_time`);
     
-    res.status(200).json({
+    // Check which tables exist
+    const tablesResult = await db.execute(sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name
+    `);
+    
+    // Check if users table has any data
+    const usersCount = await db.execute(sql`SELECT COUNT(*) as count FROM users`);
+    
+    return res.status(200).json({
       success: true,
-      videoCount: result.rows[0]?.count || 0,
-      timestamp: new Date().toISOString()
+      timestamp: timeResult.rows[0]?.current_time,
+      tables: tablesResult.rows.map(row => row.table_name),
+      usersCount: parseInt(usersCount.rows[0]?.count || '0'),
+      message: 'Database connection working'
     });
+    
   } catch (error: any) {
-    res.status(500).json({
-      error: error.message || "Database connection failed",
-      details: error.toString()
+    console.error('Database test error:', error);
+    return res.status(500).json({
+      error: error.message,
+      type: error.constructor.name,
+      detail: error.detail || error.stack?.split('\n')[0]
     });
   }
 }

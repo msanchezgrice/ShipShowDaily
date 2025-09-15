@@ -50,6 +50,17 @@ CREATE TABLE IF NOT EXISTS videos (
   boost_amount INTEGER DEFAULT 0 NOT NULL
 );
 
+-- Create credit_transactions table (was missing from screenshot)
+CREATE TABLE IF NOT EXISTS credit_transactions (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::VARCHAR,
+  user_id VARCHAR NOT NULL REFERENCES users(id),
+  type VARCHAR(50) NOT NULL,
+  amount INTEGER NOT NULL,
+  reason VARCHAR(255) NOT NULL,
+  video_id VARCHAR REFERENCES videos(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Create video_views table
 CREATE TABLE IF NOT EXISTS video_views (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::VARCHAR,
@@ -72,17 +83,7 @@ CREATE TABLE IF NOT EXISTS daily_stats (
 CREATE UNIQUE INDEX IF NOT EXISTS unique_video_date ON daily_stats(video_id, date);
 
 -- Create credit_transactions table
-CREATE TABLE IF NOT EXISTS credit_transactions (
-  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::VARCHAR,
-  user_id VARCHAR NOT NULL REFERENCES users(id),
-  type VARCHAR(50) NOT NULL,
-  amount INTEGER NOT NULL,
-  reason VARCHAR(255) NOT NULL,
-  video_id VARCHAR REFERENCES videos(id),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Create video_viewing_sessions table
+-- Create video_viewing_sessions table (renamed from viewing_sessions)
 CREATE TABLE IF NOT EXISTS video_viewing_sessions (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::VARCHAR,
   user_id VARCHAR NOT NULL REFERENCES users(id),
