@@ -1,7 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Pool } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { sql } from 'drizzle-orm';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -39,8 +36,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Test database connection
     if (process.env.DATABASE_URL) {
       try {
-        const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-        const db = drizzle(pool);
+        // Dynamic imports for database
+        const { drizzle } = await import('drizzle-orm/postgres-js');
+        const postgres = (await import('postgres')).default;
+        const { sql } = await import('drizzle-orm');
+        
+        // Create database connection
+        const client = postgres(process.env.DATABASE_URL, {
+          max: 1,
+          idle_timeout: 20,
+          connect_timeout: 10,
+          ssl: 'require',
+          prepare: false,
+        });
+        const db = drizzle(client);
         
         // Test basic query
         const userResult = await db.execute(sql`SELECT COUNT(*) as count FROM users`);
@@ -48,12 +57,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         results.database = {
           connected: true,
-          userCount: parseInt(userResult.rows[0]?.count as string || '0'),
-          videoCount: parseInt(videoResult.rows[0]?.count as string || '0'),
+          userCount: parseInt(userResult[0]?.count as string || '0'),
+          videoCount: parseInt(videoResult[0]?.count as string || '0'),
           error: null,
         };
         
-        await pool.end();
+        await client.end();
       } catch (dbError: any) {
         results.database.error = dbError.message;
       }

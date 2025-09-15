@@ -59,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `);
     
     // Transform the results to ensure creator object exists
-    const videos = (result.rows || []).map((row: any) => ({
+    const videos = (result || []).map((row: any) => ({
       id: row.id,
       title: row.title || '',
       description: row.description || '',
