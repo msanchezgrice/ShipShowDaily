@@ -370,24 +370,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Video not found" });
       }
 
-      // Check if already favorited
-      const isAlreadyFavorited = await storage.isVideoFavorited(userId, videoId);
-      if (isAlreadyFavorited) {
-        console.log(`[FAVORITE] Video already favorited by user ${userId}`);
-        return res.status(400).json({ message: "Video already favorited" });
-      }
-
+      // The storage layer will handle duplicate checking
       const favorite = await storage.favoriteVideo({
         userId,
         videoId,
       });
 
-      console.log(`[FAVORITE] Video favorited successfully: ${favorite.id}`);
+      console.log(`[FAVORITE] Video favorited successfully: ${favorite?.id || 'existing'}`);
 
       res.json({
         success: true,
         message: "Video added to favorites",
-        favoriteId: favorite.id
+        favoriteId: favorite?.id || null
       });
     } catch (error) {
       console.error("[FAVORITE] Error favoriting video:", error);

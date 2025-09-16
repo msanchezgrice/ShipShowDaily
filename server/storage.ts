@@ -898,13 +898,38 @@ export class DatabaseStorage implements IStorage {
 
   // Favorites operations
   async favoriteVideo(favorite: InsertVideoFavorite): Promise<VideoFavorite> {
-    const [result] = await db
-      .insert(videoFavorites)
-      .values(favorite)
-      .onConflictDoNothing() // Prevent duplicate favorites
-      .returning();
-    
-    return result;
+    try {
+      // First check if it already exists
+      const [existing] = await db
+        .select()
+        .from(videoFavorites)
+        .where(and(
+          eq(videoFavorites.userId, favorite.userId),
+          eq(videoFavorites.videoId, favorite.videoId)
+        ))
+        .limit(1);
+
+      if (existing) {
+        console.log(`[STORAGE] Favorite already exists for user ${favorite.userId}, video ${favorite.videoId}`);
+        return existing;
+      }
+
+      // If not, create new
+      const [result] = await db
+        .insert(videoFavorites)
+        .values(favorite)
+        .returning();
+
+      if (!result) {
+        throw new Error("Failed to create favorite");
+      }
+
+      console.log(`[STORAGE] Created new favorite: ${result.id}`);
+      return result;
+    } catch (error) {
+      console.error("[STORAGE] Error favoriting video:", error);
+      throw error;
+    }
   }
 
   async isVideoFavorited(userId: string, videoId: string): Promise<boolean> {
@@ -937,12 +962,21 @@ export class DatabaseStorage implements IStorage {
 
   // Demo link clicks operations
   async recordDemoLinkClick(click: InsertDemoLinkClick): Promise<DemoLinkClick> {
-    const [result] = await db
-      .insert(demoLinkClicks)
-      .values(click)
-      .returning();
-    
-    return result;
+    try {
+      const [result] = await db
+        .insert(demoLinkClicks)
+        .values(click)
+        .returning();
+
+      if (!result) {
+        throw new Error("Failed to record demo link click");
+      }
+
+      return result;
+    } catch (error) {
+      console.error("[STORAGE] Error recording demo link click:", error);
+      throw error;
+    }
   }
 
   async getDemoLinkClickCount(videoId: string): Promise<number> {
