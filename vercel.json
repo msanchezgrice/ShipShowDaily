@@ -1,14 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
+    "api/videos/scrape-url.ts": {
+      "maxDuration": 60
+    },
+    "api/videos/import-from-url.ts": {
+      "maxDuration": 60
+    },
     "api/**/*.{ts,js}": {
       "maxDuration": 10
-    },
-    "api/videos/scrape-url.{ts,js}": {
-      "maxDuration": 60
-    },
-    "api/videos/import-from-url.{ts,js}": {
-      "maxDuration": 60
     }
   },
   "buildCommand": "npm run build",
