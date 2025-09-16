@@ -3,6 +3,12 @@
   "functions": {
     "api/**/*.{ts,js}": {
       "maxDuration": 10
+    },
+    "api/videos/scrape-url.{ts,js}": {
+      "maxDuration": 60
+    },
+    "api/videos/import-from-url.{ts,js}": {
+      "maxDuration": 60
     }
   },
   "buildCommand": "npm run build",
