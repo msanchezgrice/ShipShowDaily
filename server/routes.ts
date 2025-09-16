@@ -212,19 +212,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post('/api/videos/scrape-url', isAuthenticated, async (req: any, res) => {
+    console.log('[SCRAPE] Request received:', req.method, req.url);
+    console.log('[SCRAPE] Request body:', req.body);
+
     try {
       const { url } = req.body ?? {};
       if (!url || typeof url !== 'string') {
+        console.error('[SCRAPE] Invalid URL provided:', url);
         return res.status(400).json({ message: 'A valid URL is required.' });
       }
 
+      console.log('[SCRAPE] Scraping URL:', url);
       const scrapeResult = await scrapeProductPage(url);
+      console.log('[SCRAPE] Scrape successful, found', scrapeResult.videoSources.length, 'videos');
       res.json(scrapeResult);
     } catch (error) {
       if (error instanceof ScrapeError) {
+        console.error('[SCRAPE] ScrapeError:', error.message);
         return res.status(400).json({ message: error.message });
       }
-      console.error('Error scraping URL:', error);
+      console.error('[SCRAPE] Error scraping URL:', error);
       res.status(500).json({ message: 'Failed to scrape the provided URL.' });
     }
   });
@@ -788,23 +795,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get('/api/leaderboard', async (req, res) => {
+    console.log('[LEADERBOARD] Request:', req.query);
+
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const sortBy = (req.query.sortBy as string) || 'views';
       const tagFilter = req.query.tag as string;
-      
+
+      console.log('[LEADERBOARD] Params:', { limit, sortBy, tagFilter });
+
       // Use enhanced leaderboard if filtering options are provided
       if (sortBy !== 'views' || tagFilter) {
+        console.log('[LEADERBOARD] Using enhanced leaderboard');
         const enhancedLeaderboard = await storage.getEnhancedLeaderboard(limit, sortBy as any, tagFilter);
         res.json(enhancedLeaderboard);
       } else {
         // Use original leaderboard for basic views sorting (for backward compatibility)
+        console.log('[LEADERBOARD] Using basic leaderboard');
         const leaderboard = await storage.getTodayLeaderboard(limit);
         res.json(leaderboard);
       }
     } catch (error: any) {
-      console.error("Error fetching leaderboard:", error);
-      res.status(500).json({ message: "Failed to fetch leaderboard" });
+      console.error("[LEADERBOARD] Error fetching leaderboard:", error);
+      console.error("[LEADERBOARD] Error stack:", error.stack);
+      res.status(500).json({ message: "Failed to fetch leaderboard", error: error.message });
     }
   });
 
