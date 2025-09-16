@@ -167,6 +167,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Video routes
+  // IMPORTANT: Specific routes must come BEFORE dynamic :id routes
+
+  // Specific GET routes
   app.get('/api/videos/top', async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
@@ -179,19 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/videos/:id', async (req, res) => {
-    try {
-      const video = await storage.getVideoWithCreatorAndTags(req.params.id);
-      if (!video) {
-        return res.status(404).json({ message: "Video not found" });
-      }
-      res.json(video);
-    } catch (error) {
-      console.error("Error fetching video:", error);
-      res.status(500).json({ message: "Failed to fetch video" });
-    }
-  });
-
+  // Specific POST routes (must be BEFORE dynamic :id routes)
   app.post('/api/videos', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -412,6 +403,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching tags:", error);
       res.status(500).json({ message: "Failed to fetch tags" });
+    }
+  });
+
+  // Dynamic :id routes (must be AFTER all specific routes)
+  app.get('/api/videos/:id', async (req, res) => {
+    try {
+      const video = await storage.getVideoWithCreatorAndTags(req.params.id);
+      if (!video) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+      res.json(video);
+    } catch (error) {
+      console.error("Error fetching video:", error);
+      res.status(500).json({ message: "Failed to fetch video" });
     }
   });
 
