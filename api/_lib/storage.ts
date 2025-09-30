@@ -352,9 +352,103 @@ export async function getTodayLeaderboard(limit = 10) {
   }));
 }
 
-export async function getEnhancedLeaderboard(limit = 10, sortBy = 'views', tagFilter?: string) {
-  // For now, just use the basic leaderboard
-  return getTodayLeaderboard(limit);
+export async function getEnhancedLeaderboard(limit = 10, sortBy: 'views' | 'favorites' | 'demo_clicks' = 'views', tagFilter?: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const todayStr = today.toISOString().split('T')[0];
+
+  // Base query - aggregate favorites and demo clicks
+  let query = db
+    .select({
+      video: videos,
+      creator: users,
+      views: sql<number>`COALESCE(${dailyStats.views}, 0)`,
+      favorites: sql<number>`COUNT(DISTINCT ${videoFavorites.id})`,
+      demoClicks: sql<number>`COUNT(DISTINCT CASE 
+        WHEN ${demoLinkClicks.clickedAt} >= ${today} 
+        AND ${demoLinkClicks.clickedAt} < ${tomorrow} 
+        THEN ${demoLinkClicks.id} 
+        ELSE NULL 
+      END)`,
+    })
+    .from(videos)
+    .innerJoin(users, eq(videos.creatorId, users.id))
+    .leftJoin(
+      dailyStats,
+      and(
+        eq(videos.id, dailyStats.videoId),
+        eq(dailyStats.date, todayStr)
+      )
+    )
+    .leftJoin(videoFavorites, eq(videos.id, videoFavorites.videoId))
+    .leftJoin(demoLinkClicks, eq(videos.id, demoLinkClicks.videoId))
+    .where(
+      and(
+        eq(videos.isActive, true),
+        or(
+          // Either has views today
+          sql`${dailyStats.views} > 0`,
+          // Or was created today
+          gte(videos.createdAt, today)
+        )
+      )
+    );
+
+  // Add tag filtering if specified
+  if (tagFilter) {
+    query = query
+      .innerJoin(videoTags, eq(videos.id, videoTags.videoId))
+      .innerJoin(tags, and(eq(videoTags.tagId, tags.id), eq(tags.name, tagFilter)));
+  }
+
+  // Group and order by the specified metric
+  let orderByClause;
+  switch (sortBy) {
+    case 'favorites':
+      orderByClause = desc(sql`COUNT(DISTINCT ${videoFavorites.id})`);
+      break;
+    case 'demo_clicks':
+      orderByClause = desc(sql`COUNT(DISTINCT CASE 
+        WHEN ${demoLinkClicks.clickedAt} >= ${today} 
+        AND ${demoLinkClicks.clickedAt} < ${tomorrow} 
+        THEN ${demoLinkClicks.id} 
+        ELSE NULL 
+      END)`);
+      break;
+    default:
+      orderByClause = desc(sql`COALESCE(${dailyStats.views}, 0)`);
+  }
+
+  const result = await query
+    .groupBy(videos.id, users.id, dailyStats.views)
+    .orderBy(orderByClause, desc(videos.createdAt))
+    .limit(limit);
+
+  // Get tags for each video
+  const videosWithTags = await Promise.all(
+    result.map(async (row) => {
+      const videoTags = await getVideoTags(row.video.id);
+      return {
+        position: 0, // Will be set below
+        video: {
+          ...row.video,
+          tags: videoTags,
+        },
+        creator: row.creator,
+        views: row.views,
+        favorites: row.favorites,
+        demoClicks: row.demoClicks,
+      };
+    })
+  );
+
+  // Set positions
+  return videosWithTags.map((item, index) => ({
+    ...item,
+    position: index + 1,
+  }));
 }
 
 // Video viewing session operations
