@@ -1,10 +1,11 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useClerk, SignedIn, SignedOut, SignInButton, useUser } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import CreditPurchaseDialog from "@/components/CreditPurchaseDialog";
 import { 
   Rocket, 
   Trophy, 
@@ -14,15 +15,17 @@ import {
   User,
   Film,
   LogOut,
-  Settings
+  Settings,
+  Menu
 } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Navigation() {
-  // Use Clerk's useUser hook directly for user info to avoid context issues
   const { user: clerkUser } = useUser();
   const { signOut } = useClerk();
   const [location, navigate] = useLocation();
+  const [showCreditsDialog, setShowCreditsDialog] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Use the custom useAuth hook only for app-specific data like credits
   let appUserData = null;
@@ -36,7 +39,6 @@ export default function Navigation() {
   const handleSignOut = () => {
     signOut();
   };
-
 
   const navItems = [
     { href: "/", label: "Leaderboard", icon: Trophy, active: location === "/", requiresAuth: false },
@@ -91,26 +93,50 @@ export default function Navigation() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            {/* Mobile menu */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64">
+                <div className="flex flex-col space-y-4 mt-8">
+                  {navItems.map((item) => {
+                    if (item.requiresAuth && !clerkUser) return null;
+                    return (
+                      <Button
+                        key={item.href}
+                        variant={item.active ? "secondary" : "ghost"}
+                        className="justify-start"
+                        onClick={() => {
+                          navigate(item.href);
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        <item.icon className="h-4 w-4 mr-2" />
+                        {item.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </SheetContent>
+            </Sheet>
+
             <SignedIn>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div 
-                      className="flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/10 cursor-help"
-                      data-testid="credits-display"
-                    >
-                      <Coins className="h-4 w-4 text-primary" />
-                      <span className="font-semibold text-primary">
-                        {appUserData?.credits ?? 0}
-                      </span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Available Credits</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCreditsDialog(true)}
+                className="flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/10 hover:bg-primary/20"
+                data-testid="credits-display"
+              >
+                <Coins className="h-4 w-4 text-primary" />
+                <span className="font-semibold text-primary">
+                  {appUserData?.credits ?? 0}
+                </span>
+              </Button>
             </SignedIn>
             
             <SignedOut>
@@ -166,6 +192,12 @@ export default function Navigation() {
           </div>
         </div>
       </div>
+
+      {/* Credit Purchase Dialog */}
+      <CreditPurchaseDialog
+        isOpen={showCreditsDialog}
+        onClose={() => setShowCreditsDialog(false)}
+      />
     </nav>
   );
 }
