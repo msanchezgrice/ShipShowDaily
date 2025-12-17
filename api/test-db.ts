@@ -1,38 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getUser, getFeedVideos, getTodayStats } from './_lib/data';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   
   try {
-    // Dynamic imports only - no static imports at all
-    const { drizzle } = await import('drizzle-orm/postgres-js');
-    const postgres = (await import('postgres')).default;
-    const { eq } = await import('drizzle-orm');
-    const { users } = await import('../shared/schema');
-    
-    if (!process.env.DATABASE_URL) {
-      return res.status(200).json({ success: false, error: 'DATABASE_URL not set' });
-    }
-    
-    const sql = postgres(process.env.DATABASE_URL, {
-      max: 1,
-      idle_timeout: 20,
-      connect_timeout: 10,
-      ssl: 'require',
-      prepare: false,
-    });
-    
-    const db = drizzle(sql);
-    
-    // Test a simple query
-    const result = await db.select().from(users).limit(1);
-    
-    await sql.end();
+    // Test the new data layer
+    const stats = await getTodayStats();
+    const feed = await getFeedVideos({ limit: 3 });
     
     return res.status(200).json({
       success: true,
-      userCount: result.length,
-      firstUser: result[0] ? { id: result[0].id, email: result[0].email } : null
+      stats,
+      feedCount: feed.length,
+      firstVideo: feed[0] ? { id: feed[0].video.id, title: feed[0].video.title } : null
     });
     
   } catch (e: any) {

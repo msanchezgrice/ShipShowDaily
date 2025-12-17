@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql } from 'drizzle-orm';
+import { getFeedVideos } from './_lib/data';
 import { createClerkClient } from '@clerk/clerk-sdk-node';
+import { trackEvent } from './_lib/analytics';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -15,28 +16,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = req.headers.origin as string;
   const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Max-Age', '86400');
   
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
   
-  // Only allow GET requests
   if (req.method !== 'GET') {
     return res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
   
-  let client;
-  
   try {
-    if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: "DATABASE_URL not set" });
-    }
-
     // Try to get user ID from auth token (optional - feed works for unauthenticated users too)
     let userId: string | null = null;
     const token = req.headers.authorization?.toString().replace('Bearer ', '');
@@ -54,89 +46,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const limitParam = req.query?.limit;
     const limit = Math.min(limitParam ? parseInt(limitParam as string, 10) : 20, 100);
 
-    // Dynamic import of postgres
-    const postgres = (await import('postgres')).default;
-    const { sql } = await import('drizzle-orm');
-    client = postgres(process.env.DATABASE_URL, {
-      max: 1,
-      idle_timeout: 20,
-      connect_timeout: 10,
-      ssl: 'require',
-      prepare: false,
-    });
-    const { drizzle } = await import('drizzle-orm/postgres-js');
-    const db = drizzle(client);
+    // Fetch feed using data layer
+    const feedItems = await getFeedVideos({ limit, userId });
 
-    // Get all active videos ordered by total views, including favorite status if user is logged in
-    const result = await db.execute(sql`
-      SELECT 
-        v.id,
-        v.title,
-        v.description,
-        v.product_url as "productUrl",
-        v.video_path as "videoPath",
-        v.thumbnail_path as "thumbnailPath",
-        v.creator_id as "creatorId",
-        COALESCE(u.email, 'Anonymous') as "creatorName",
-        u.first_name as "creatorFirstName",
-        u.last_name as "creatorLastName",
-        u.profile_image_url as "creatorImageUrl",
-        COALESCE(v.total_views, 0) as "totalViews",
-        v.hls_url as "hlsUrl",
-        v.provider,
-        v.status,
-        v.is_active as "isActive",
-        v.created_at as "createdAt",
-        ${userId ? sql`EXISTS(SELECT 1 FROM video_favorites vf WHERE vf.video_id = v.id AND vf.user_id = ${userId})` : sql`false`} as "isFavorited"
-      FROM videos v
-      LEFT JOIN users u ON v.creator_id = u.id
-      WHERE v.is_active = true
-      ORDER BY v.total_views DESC, v.created_at DESC
-      LIMIT ${limit}
-    `);
-    
-    // Transform the results to match feed format
-    const feedItems = (result || []).map((row: any) => ({
-      video: {
-        id: row.id,
-        title: row.title || '',
-        description: row.description || '',
-        productUrl: row.productUrl || '',
-        videoPath: row.videoPath || row.hlsUrl || '',
-        thumbnailPath: row.thumbnailPath || null,
-        creatorId: row.creatorId,
-        totalViews: row.totalViews || 0,
-        isActive: row.isActive || false,
-        createdAt: row.createdAt,
-        provider: row.provider,
-        status: row.status,
-        hls_url: row.hlsUrl
-      },
-      creator: {
-        id: row.creatorId || '',
-        firstName: row.creatorFirstName,
-        lastName: row.creatorLastName,
-        email: row.creatorName,
-        profileImageUrl: row.creatorImageUrl || null
-      },
-      tags: [],
-      todayViews: 0,
-      totalViews: row.totalViews || 0,
-      isFavorited: row.isFavorited === true || row.isFavorited === 't',
-      boostAmount: 0
-    }));
+    // Track feed view (both logged-in and anonymous)
+    trackEvent('feed_viewed', {
+      userId,
+      req: { headers: req.headers as Record<string, any> },
+      properties: { items_count: feedItems.length },
+    });
     
     return res.status(200).json(feedItems);
   } catch (error: any) {
     console.error('Feed error:', error);
     return res.status(500).json({
       error: error.message || "Failed to fetch feed",
-      details: error.toString()
     });
-  } finally {
-    // Close the connection
-    if (client) {
-      await client.end();
-    }
   }
 }

@@ -1,49 +1,62 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../../_lib/storage';
-import { requireAuth, sendUnauthorized } from '../../_lib/auth';
-import { validateMethod, handleError, sendSuccess, getQueryParam } from '../../_lib/utils';
+import { createClerkClient } from '@clerk/clerk-sdk-node';
+import { getVideo, toggleFavorite } from '../../_lib/data';
+import { trackFavorite } from '../../_lib/analytics';
+
+const ALLOWED_ORIGINS = ['https://shipshow.io', 'https://www.shipshow.io', 'http://localhost:3000', 'http://localhost:5173'];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const origin = req.headers.origin as string;
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  
   try {
-    // Only allow POST requests
-    if (!validateMethod(req, res, ['POST'])) {
-      return;
+    // Get video ID from URL
+    const videoId = req.query.id as string;
+    if (!videoId) {
+      return res.status(400).json({ error: 'Video ID is required' });
     }
 
     // Require authentication
-    const auth = await requireAuth(req);
-    if (!auth) {
-      return sendUnauthorized(res);
+    const token = req.headers.authorization?.toString().replace('Bearer ', '');
+    if (!token || !process.env.CLERK_SECRET_KEY) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const videoId = getQueryParam(req, 'id');
-    if (!videoId) {
-      return res.status(400).json({ message: "Video ID is required" });
+    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+    const payload = await clerk.verifyToken(token);
+    if (!payload.sub) {
+      return res.status(401).json({ error: 'Invalid token' });
     }
+    const userId = payload.sub;
 
-    // Check if video exists
-    const video = await storage.getVideo(videoId);
+    // Check video exists
+    const video = await getVideo(videoId);
     if (!video) {
-      return res.status(404).json({ message: "Video not found" });
+      return res.status(404).json({ error: 'Video not found' });
     }
 
-    // Check if already favorited
-    const isAlreadyFavorited = await storage.isVideoFavorited(auth.userId, videoId);
-    if (isAlreadyFavorited) {
-      return res.status(400).json({ message: "Video already favorited" });
-    }
-
-    const favorite = await storage.favoriteVideo({
-      userId: auth.userId,
-      videoId,
+    // Toggle favorite
+    const result = await toggleFavorite(userId, videoId);
+    
+    // Track in analytics (both logged-in and for aggregate stats)
+    trackFavorite(videoId, video.title, result.favorited, {
+      userId,
+      req: { headers: req.headers as Record<string, any> },
     });
 
-    return sendSuccess(res, { 
-      success: true, 
-      message: "Video added to favorites",
-      favoriteId: favorite.id 
+    return res.status(200).json({
+      success: true,
+      favorited: result.favorited,
+      message: result.favorited ? 'Added to favorites' : 'Removed from favorites',
     });
-  } catch (error) {
-    return handleError(res, error, "Failed to favorite video");
+  } catch (error: any) {
+    console.error('Favorite error:', error);
+    return res.status(500).json({ error: error.message || 'Failed to toggle favorite' });
   }
 }
