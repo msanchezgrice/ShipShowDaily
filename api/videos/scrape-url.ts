@@ -427,6 +427,74 @@ async function scrapeProductPage(targetUrl: string): Promise<ScrapeResult> {
   };
 }
 
+async function generateTagsWithAI(title: string | undefined, description: string | undefined, url: string): Promise<string[]> {
+  if (!process.env.OPENAI_API_KEY) {
+    console.log('[AI-TAGS] No OPENAI_API_KEY set, skipping AI tag generation');
+    return [];
+  }
+
+  const content = [
+    title && `Title: ${title}`,
+    description && `Description: ${description}`,
+    `URL: ${url}`,
+  ].filter(Boolean).join('\n');
+
+  if (!content || content.length < 20) {
+    return [];
+  }
+
+  try {
+    const OpenAI = (await import('openai')).default;
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a tag suggestion assistant for a product demo video platform. Given product information, suggest 3-6 relevant tags that would help users discover this product. Tags should be concise (1-2 words), lowercase, and represent categories like: AI, SaaS, Developer Tools, Productivity, Marketing, Design, Analytics, E-commerce, Finance, Health, Education, etc. Return ONLY a JSON array of strings, nothing else.`
+        },
+        {
+          role: 'user',
+          content: content
+        }
+      ],
+      max_tokens: 100,
+      temperature: 0.3,
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim() || '[]';
+    
+    // Parse the JSON array
+    let tags: string[] = [];
+    try {
+      const parsed = JSON.parse(responseText);
+      if (Array.isArray(parsed)) {
+        tags = parsed
+          .filter((t: any) => typeof t === 'string')
+          .map((t: string) => t.trim().toLowerCase().slice(0, 50))
+          .filter((t: string) => t.length > 0)
+          .slice(0, 6);
+      }
+    } catch {
+      // Try to extract tags from non-JSON response
+      const matches = responseText.match(/["']([^"']+)["']/g);
+      if (matches) {
+        tags = matches
+          .map(m => m.replace(/["']/g, '').trim().toLowerCase())
+          .filter(t => t.length > 0 && t.length <= 50)
+          .slice(0, 6);
+      }
+    }
+
+    console.log('[AI-TAGS] Generated tags:', tags);
+    return tags;
+  } catch (error: any) {
+    console.error('[AI-TAGS] Error generating tags:', error.message);
+    return [];
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = req.headers.origin as string;
   res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]);
@@ -458,6 +526,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[SCRAPE] Scraping URL:', url);
     const scrapeResult = await scrapeProductPage(url);
     console.log('[SCRAPE] Scrape successful, found', scrapeResult.videoSources.length, 'videos');
+
+    // Generate AI tags if no tags were found from meta
+    if (scrapeResult.tags.length === 0) {
+      const aiTags = await generateTagsWithAI(scrapeResult.title, scrapeResult.description, url);
+      scrapeResult.tags = aiTags;
+    }
 
     return res.status(200).json(scrapeResult);
   } catch (error: any) {

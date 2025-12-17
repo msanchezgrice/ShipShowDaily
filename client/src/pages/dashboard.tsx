@@ -23,8 +23,20 @@ import {
   Upload,
   Award,
   Play,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { useLocation } from "wouter";
 
@@ -90,6 +102,36 @@ export default function Dashboard() {
       toast({
         title: "Boost Failed",
         description: "Failed to boost video. Please check your credit balance.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (videoId: string) => {
+      return await apiRequest("DELETE", `/api/videos/${videoId}/delete`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Video Deleted",
+        description: "Your video has been deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/videos"] });
+      refetchVideos();
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => navigate("/"), 500);
+        return;
+      }
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete video. Please try again.",
         variant: "destructive",
       });
     },
@@ -293,6 +335,35 @@ export default function Dashboard() {
                             <Rocket className="mr-2 h-3 w-3" />
                             Boost
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                data-testid={`button-delete-${video.id}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Video</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{video.title}"? This action cannot be undone.
+                                  All views, favorites, and stats will be permanently removed.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(video.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </div>
                     </div>
