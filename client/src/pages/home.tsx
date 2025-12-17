@@ -251,6 +251,7 @@ export default function Home() {
                 position: index + 1,
                 video: {
                   id: item.id,
+                  slug: item.slug,
                   title: item.title || '',
                   description: item.description || '',
                   thumbnailPath: item.thumbnailPath,

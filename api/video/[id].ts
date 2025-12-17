@@ -29,11 +29,11 @@ function escapeHtml(text: string): string {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userAgent = req.headers['user-agent'] || '';
-  const videoId = req.query.id as string;
+  const idOrSlug = req.query.id as string;
 
   // If not a bot, redirect to the SPA
   if (!isBot(userAgent)) {
-    res.setHeader('Location', `/?video=${videoId}`);
+    res.setHeader('Location', `/video/${idOrSlug}`);
     return res.status(302).end();
   }
 
@@ -54,14 +54,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     const db = drizzle(client);
 
+    // Support both UUID and slug lookup
     const result = await db.execute(sql`
       SELECT 
-        v.id, v.title, v.description, v.thumbnail_path as "thumbnailPath",
+        v.id, v.slug, v.title, v.description, v.thumbnail_path as "thumbnailPath",
         v.total_views as "totalViews", v.product_url as "productUrl",
         u.email as "creatorEmail", u.first_name as "creatorFirstName", u.last_name as "creatorLastName"
       FROM videos v
       LEFT JOIN users u ON v.creator_id = u.id
-      WHERE v.id = ${videoId} AND v.is_active = true
+      WHERE (v.id = ${idOrSlug} OR v.slug = ${idOrSlug}) AND v.is_active = true
     `);
 
     if (!result.length) {
@@ -74,7 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : video.creatorEmail?.split('@')[0] || 'Anonymous';
 
     const baseUrl = 'https://www.shipshow.io';
-    const videoUrl = `${baseUrl}/video/${videoId}`;
+    // Use slug for canonical URL if available, otherwise use ID
+    const videoUrl = `${baseUrl}/video/${video.slug || video.id}`;
     const title = video.title || 'Demo Video';
     const description = video.description || `Watch ${title} on ShipShow - Daily Demo Leaderboard`;
     const image = video.thumbnailPath || `${baseUrl}/og-image.png`;

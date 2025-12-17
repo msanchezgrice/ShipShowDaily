@@ -9,6 +9,7 @@ interface LeaderboardItem {
   position: number;
   video: {
     id: string;
+    slug?: string;
     title: string;
     description?: string;
     thumbnailPath?: string;
@@ -171,7 +172,7 @@ export default function Leaderboard({ items, sortBy = 'views', onSortChange }: L
                   {/* Video thumbnail */}
                   <div 
                     className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-secondary cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => navigate(`/video/${item.video.id}`)}
+                    onClick={() => navigate(`/video/${item.video.slug || item.video.id}`)}
                   >
                     {item.video.thumbnailPath ? (
                       <img 
@@ -188,7 +189,7 @@ export default function Leaderboard({ items, sortBy = 'views', onSortChange }: L
                   <div className="flex-1 min-w-0">
                     <p 
                       className="font-medium text-foreground text-sm hover:text-primary cursor-pointer line-clamp-1"
-                      onClick={() => navigate(`/video/${item.video.id}`)}
+                      onClick={() => navigate(`/video/${item.video.slug || item.video.id}`)}
                     >
                       {item.video.title}
                     </p>

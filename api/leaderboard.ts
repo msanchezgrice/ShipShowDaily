@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Leaderboard query - all active videos sorted by boost, then views, then newest
     const result = await db.execute(sql`
       SELECT 
-        v.id, v.title, v.description,
+        v.id, v.slug, v.title, v.description,
         v.product_url as "productUrl",
         v.video_path as "videoPath",
         v.thumbnail_path as "thumbnailPath",
@@ -82,6 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const leaderboard = (result || []).map((row: any) => ({
       id: row.id,
+      slug: row.slug || null,
       title: row.title || '',
       description: row.description || '',
       productUrl: row.productUrl || '',
