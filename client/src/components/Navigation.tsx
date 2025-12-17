@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import CreditPurchaseDialog from "@/components/CreditPurchaseDialog";
+import NotificationsDropdown from "@/components/NotificationsDropdown";
 import { 
   Rocket, 
   Trophy, 
@@ -125,6 +126,7 @@ export default function Navigation() {
             </Sheet>
 
             <SignedIn>
+              <NotificationsDropdown />
               <Button
                 variant="ghost"
                 size="sm"
