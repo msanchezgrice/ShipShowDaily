@@ -42,6 +42,7 @@ export const users = pgTable("users", {
 
 export const videos = pgTable("videos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  slug: varchar("slug", { length: 300 }), // SEO-friendly URL slug
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
   productUrl: varchar("product_url", { length: 500 }).notNull(),

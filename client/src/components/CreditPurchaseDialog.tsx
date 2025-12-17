@@ -247,7 +247,7 @@ export default function CreditPurchaseDialog({
       const response = await apiRequest('POST', '/api/credits/create-payment-intent', {
         packageId
       });
-      return response;
+      return response.json();
     },
     onSuccess: (data: any) => {
       setClientSecret(data.clientSecret);

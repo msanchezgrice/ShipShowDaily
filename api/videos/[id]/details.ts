@@ -23,20 +23,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { sql } = await import('drizzle-orm');
     const { drizzle } = await import('drizzle-orm/postgres-js');
 
-    const videoId = req.query.id as string;
-    if (!videoId) {
-      return res.status(400).json({ error: 'Video ID is required' });
+    const idOrSlug = req.query.id as string;
+    if (!idOrSlug) {
+      return res.status(400).json({ error: 'Video ID or slug is required' });
     }
+
+    // Check if it's a UUID or slug
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
 
     client = postgres(process.env.DATABASE_URL, {
       max: 1, idle_timeout: 20, connect_timeout: 10, ssl: 'require', prepare: false,
     });
     const db = drizzle(client);
 
-    // Get video with creator info
+    // Get video with creator info (lookup by id or slug)
     const videoResult = await db.execute(sql`
       SELECT 
-        v.id, v.title, v.description, v.product_url as "productUrl",
+        v.id, v.slug, v.title, v.description, v.product_url as "productUrl",
         v.video_path as "videoPath", v.thumbnail_path as "thumbnailPath",
         v.creator_id as "creatorId", v.total_views as "totalViews",
         v.is_active as "isActive", v.created_at as "createdAt",
@@ -46,7 +49,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         u.profile_image_url as "creator_profileImageUrl"
       FROM videos v
       LEFT JOIN users u ON v.creator_id = u.id
-      WHERE v.id = ${videoId} AND v.is_active = true
+      WHERE (v.id = ${idOrSlug} OR v.slug = ${idOrSlug})
+        AND v.is_active = true
     `);
 
     if (!videoResult.length) {
@@ -54,6 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const row = videoResult[0] as any;
+    const videoId = row.id; // Use actual video ID for subsequent queries
 
     // Get stats
     const statsResult = await db.execute(sql`
@@ -95,6 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       video: {
         id: row.id,
+        slug: row.slug,
         title: row.title,
         description: row.description,
         productUrl: row.productUrl,

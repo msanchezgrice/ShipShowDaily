@@ -63,12 +63,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let tagsByVideo: Record<string, Array<{id: string, name: string}>> = {};
     
     if (videoIds.length > 0) {
-      const tagsResult = await db.execute(sql`
+      // Use IN clause with properly formatted UUIDs
+      const videoIdList = videoIds.map((id: string) => `'${id}'`).join(',');
+      const tagsResult = await db.execute(sql.raw(`
         SELECT vt.video_id as "videoId", t.id, t.name
         FROM video_tags vt
         JOIN tags t ON vt.tag_id = t.id
-        WHERE vt.video_id = ANY(${videoIds}::uuid[])
-      `);
+        WHERE vt.video_id IN (${videoIdList})
+      `));
       
       for (const tag of tagsResult as any[]) {
         if (!tagsByVideo[tag.videoId]) {
