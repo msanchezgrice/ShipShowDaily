@@ -8,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { drizzle } = await import('drizzle-orm/postgres-js');
     const postgres = (await import('postgres')).default;
     const { eq } = await import('drizzle-orm');
-    const { users } = await import('../../shared/schema');
+    const { users } = await import('../shared/schema');
     
     if (!process.env.DATABASE_URL) {
       return res.status(200).json({ success: false, error: 'DATABASE_URL not set' });
