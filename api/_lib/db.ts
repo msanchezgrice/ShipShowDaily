@@ -1,10 +1,12 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from "../../shared/schema";
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL must be set in environment variables");
 }
+
+// Use require for postgres to avoid ESM default import issues
+const postgres = require('postgres');
 
 // Create postgres connection for Supabase
 const connectionString = process.env.DATABASE_URL;
@@ -18,7 +20,7 @@ const sql = postgres(connectionString, {
   prepare: false, // Disable prepared statements for serverless
 });
 
-export const db = drizzle(sql, { schema });
+export const db: PostgresJsDatabase<typeof schema> = drizzle(sql, { schema });
 
 // Export schema for convenience
 export * from "../../shared/schema";
