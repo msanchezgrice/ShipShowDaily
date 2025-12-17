@@ -1,6 +1,7 @@
 import { db } from './db';
 import { users, videos, dailyStats, tags, videoTags, videoFavorites, videoViews, creditTransactions, videoViewingSessions, demoLinkClicks } from '../../shared/schema';
 import { eq, desc, sql, and, gte, lt, or } from 'drizzle-orm';
+import { getFeedVideos as getFeedVideosFromAdapter } from './storage-adapter';
 
 // User operations
 export async function getUser(id: string) {
@@ -636,7 +637,6 @@ export async function getDemoLinkClickCount(videoId: string) {
 }
 
 // Feed operations (already exists in storage-adapter.ts)
-import { getFeedVideos as getFeedVideosFromAdapter } from './storage-adapter';
 export { getFeedVideos } from './storage-adapter';
 
 // Export storage object for compatibility
