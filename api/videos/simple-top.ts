@@ -25,9 +25,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: "DATABASE_URL not set" });
     }
 
-    // Get limit from query params
+    // Get limit and tag from query params
     const limitParam = req.query?.limit;
     const limit = limitParam ? parseInt(limitParam as string, 10) : 3;
+    const tagFilter = req.query?.tag as string | undefined;
 
     // Dynamic import of postgres
     const postgres = (await import('postgres')).default;
@@ -41,28 +42,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { drizzle } = await import('drizzle-orm/postgres-js');
     const db = drizzle(client);
 
-    // Get top videos by total views
-    const result = await db.execute(sql`
-      SELECT 
-        v.id,
-        v.title,
-        v.description,
-        v.product_url as "productUrl",
-        v.video_path as "videoPath",
-        v.thumbnail_path as "thumbnailPath",
-        v.creator_id as "creatorId",
-        COALESCE(u.email, 'Anonymous') as "creatorName",
-        u.profile_image_url as "creatorImageUrl",
-        COALESCE(v.total_views, 0) as "totalViews",
-        0 as views,
-        0 as "creditsSpent",
-        v.is_active as "isActive"
-      FROM videos v
-      LEFT JOIN users u ON v.creator_id = u.id
-      WHERE v.is_active = true
-      ORDER BY v.total_views DESC
-      LIMIT ${limit}
-    `);
+    // Get top videos by total views, optionally filtered by tag
+    let result;
+    if (tagFilter) {
+      result = await db.execute(sql`
+        SELECT DISTINCT
+          v.id,
+          v.slug,
+          v.title,
+          v.description,
+          v.product_url as "productUrl",
+          v.video_path as "videoPath",
+          v.thumbnail_path as "thumbnailPath",
+          v.creator_id as "creatorId",
+          COALESCE(u.email, 'Anonymous') as "creatorName",
+          u.profile_image_url as "creatorImageUrl",
+          COALESCE(v.total_views, 0) as "totalViews",
+          0 as views,
+          0 as "creditsSpent",
+          v.is_active as "isActive"
+        FROM videos v
+        LEFT JOIN users u ON v.creator_id = u.id
+        INNER JOIN video_tags vt ON v.id = vt.video_id
+        INNER JOIN tags t ON vt.tag_id = t.id
+        WHERE v.is_active = true AND LOWER(t.name) = LOWER(${tagFilter})
+        ORDER BY v.total_views DESC
+        LIMIT ${limit}
+      `);
+    } else {
+      result = await db.execute(sql`
+        SELECT 
+          v.id,
+          v.slug,
+          v.title,
+          v.description,
+          v.product_url as "productUrl",
+          v.video_path as "videoPath",
+          v.thumbnail_path as "thumbnailPath",
+          v.creator_id as "creatorId",
+          COALESCE(u.email, 'Anonymous') as "creatorName",
+          u.profile_image_url as "creatorImageUrl",
+          COALESCE(v.total_views, 0) as "totalViews",
+          0 as views,
+          0 as "creditsSpent",
+          v.is_active as "isActive"
+        FROM videos v
+        LEFT JOIN users u ON v.creator_id = u.id
+        WHERE v.is_active = true
+        ORDER BY v.total_views DESC
+        LIMIT ${limit}
+      `);
+    }
     
     // Transform the results to ensure creator object exists
     const videos = (result || []).map((row: any) => ({

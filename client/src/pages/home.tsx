@@ -8,20 +8,23 @@ import VideoPlayer from "@/components/VideoPlayerEnhanced";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Video, Coins, Users, Clock, TrendingUp, BarChart3, Hash, X } from "lucide-react";
+import { Eye, Video, Coins, Users, Clock, TrendingUp, BarChart3, Hash, X, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 export default function Home() {
   const [, navigate] = useLocation();
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [resetTimer, setResetTimer] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [leaderboardSortBy, setLeaderboardSortBy] = useState<'views' | 'favorites' | 'demo_clicks'>('views');
 
   const { data: topVideos = [] } = useQuery<any[]>({
     queryKey: ["/api/videos/simple-top", selectedTag],
     queryFn: () => {
-      // Temporarily ignore tag filter until we fix the complex queries
-      const url = `/api/videos/simple-top?limit=3`;
+      const url = selectedTag 
+        ? `/api/videos/simple-top?limit=10&tag=${encodeURIComponent(selectedTag)}`
+        : `/api/videos/simple-top?limit=10`;
       return fetch(url).then(async res => {
         if (!res.ok) return [];
         return res.json();
@@ -61,6 +64,16 @@ export default function Home() {
       const url = `/api/leaderboard?sortBy=${leaderboardSortBy}&limit=10`;
       return fetch(url).then(async res => (res.ok ? res.json() : []));
     },
+  });
+
+  // Filter videos by search query (client-side)
+  const filteredVideos = topVideos.filter((video: any) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      video.title?.toLowerCase().includes(query) ||
+      video.description?.toLowerCase().includes(query)
+    );
   });
 
   // Update reset timer
@@ -174,12 +187,24 @@ export default function Home() {
               </div>
             </div>
             
-            {/* Tag Filtering */}
-            <div className="mb-6">
+            {/* Search and Tag Filtering */}
+            <div className="mb-6 space-y-4">
+              {/* Search Input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search demos by title or description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {/* Tag Filters */}
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm text-muted-foreground font-medium flex items-center">
                   <Hash className="h-3 w-3 mr-1" />
-                  Filter by tags:
+                  Categories:
                 </span>
                 
                 {selectedTag && (
@@ -194,7 +219,7 @@ export default function Home() {
                 )}
                 
                 <div className="flex flex-wrap gap-2">
-                  {allTags.slice(0, 8).map((tag) => (
+                  {allTags.slice(0, 10).map((tag) => (
                     <Badge
                       key={tag.id}
                       variant={selectedTag === tag.name ? "default" : "secondary"}
@@ -212,20 +237,31 @@ export default function Home() {
                   ))}
                   
                   {allTags.length === 0 && (
-                    <span className="text-sm text-muted-foreground italic">No tags available yet</span>
+                    <span className="text-sm text-muted-foreground italic">No categories yet</span>
                   )}
                 </div>
               </div>
               
-              {selectedTag && topVideos && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Showing videos tagged with "<strong>{selectedTag}</strong>". {topVideos.length} video{topVideos.length !== 1 ? 's' : ''} found.
-                </p>
+              {(selectedTag || searchQuery) && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {selectedTag && <span>Tagged: <strong>{selectedTag}</strong></span>}
+                  {selectedTag && searchQuery && <span>•</span>}
+                  {searchQuery && <span>Searching: <strong>"{searchQuery}"</strong></span>}
+                  <span>• {filteredVideos.length} result{filteredVideos.length !== 1 ? 's' : ''}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => { setSelectedTag(null); setSearchQuery(""); }}
+                    className="h-6 px-2 text-xs"
+                  >
+                    Clear filters
+                  </Button>
+                </div>
               )}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" data-testid="videos-grid">
-              {topVideos && topVideos.length > 0 && topVideos.map((video: any, index: number) => (
+              {filteredVideos && filteredVideos.length > 0 && filteredVideos.map((video: any, index: number) => (
                 <VideoCard
                   key={video.id}
                   video={video}
@@ -236,10 +272,23 @@ export default function Home() {
               ))}
             </div>
 
-            {(!topVideos || topVideos.length === 0) && (
+            {filteredVideos.length === 0 && (
               <div className="text-center py-12">
                 <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No videos available today. Be the first to submit!</p>
+                <p className="text-muted-foreground">
+                  {searchQuery || selectedTag 
+                    ? "No demos match your search. Try different filters."
+                    : "No videos available today. Be the first to submit!"}
+                </p>
+                {(searchQuery || selectedTag) && (
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => { setSelectedTag(null); setSearchQuery(""); }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
               </div>
             )}
           </div>
