@@ -1,35 +1,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { storage } from '../_lib/storage';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   
-  const results: Record<string, any> = {
-    step: 'start',
-    errors: []
-  };
-  
   try {
-    results.step = 'importing db';
-    const { db } = await import('../_lib/db');
-    results.dbImported = true;
-    
-    results.step = 'importing storage';
-    const { storage } = await import('../_lib/storage');
-    results.storageImported = true;
-    
-    results.step = 'testing getUser';
     const user = await storage.getUser('test-id-that-does-not-exist');
-    results.getUserWorks = true;
-    results.userResult = user || 'no user found (expected)';
     
-    results.step = 'done';
-    results.success = true;
+    return res.status(200).json({
+      success: true,
+      storageImported: true,
+      userResult: user || 'no user found (expected)'
+    });
     
   } catch (e: any) {
-    results.error = e.message;
-    results.stack = e.stack;
-    results.success = false;
+    return res.status(200).json({
+      success: false,
+      error: e.message,
+      stack: e.stack
+    });
   }
-  
-  return res.status(200).json(results);
 }
