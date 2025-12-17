@@ -387,7 +387,6 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
               poster={video.thumbnailPath}
               playsInline
               preload="metadata"
-              crossOrigin="anonymous"
             />
 
             {/* Loading overlay */}
