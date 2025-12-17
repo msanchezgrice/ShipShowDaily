@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { db } from './_lib/db';
-import { sql } from 'drizzle-orm';
+import { db, videos, users, videoTags, dailyStats, videoFavorites, videoViews, videoViewingSessions, demoLinkClicks, creditTransactions } from './_lib/db';
+import { eq, like, or } from 'drizzle-orm';
 
 // DELETE endpoint to remove all demo/placeholder data
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -26,9 +26,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const results: string[] = [];
   const errors: string[] = [];
   
-  const safeDelete = async (query: any, description: string) => {
+  const safeDelete = async (fn: () => Promise<any>, description: string) => {
     try {
-      await db.execute(query);
+      await fn();
       results.push(description);
     } catch (e: any) {
       errors.push(`${description}: ${e.message}`);
@@ -36,15 +36,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
 
   // Delete in order to respect foreign keys
-  await safeDelete(sql`DELETE FROM video_tags WHERE video_id LIKE 'demo-video-%'`, 'video_tags');
-  await safeDelete(sql`DELETE FROM daily_stats WHERE video_id LIKE 'demo-video-%'`, 'daily_stats');
-  await safeDelete(sql`DELETE FROM video_favorites WHERE video_id LIKE 'demo-video-%'`, 'video_favorites');
-  await safeDelete(sql`DELETE FROM video_views WHERE video_id LIKE 'demo-video-%'`, 'video_views');
-  await safeDelete(sql`DELETE FROM video_viewing_sessions WHERE video_id LIKE 'demo-video-%'`, 'video_viewing_sessions');
-  await safeDelete(sql`DELETE FROM demo_link_clicks WHERE video_id LIKE 'demo-video-%'`, 'demo_link_clicks');
-  await safeDelete(sql`DELETE FROM credit_transactions WHERE user_id = 'demo-user-1'`, 'credit_transactions');
-  await safeDelete(sql`DELETE FROM videos WHERE id LIKE 'demo-video-%' OR creator_id = 'demo-user-1'`, 'videos');
-  await safeDelete(sql`DELETE FROM users WHERE id = 'demo-user-1'`, 'demo user');
+  await safeDelete(() => db.delete(videoTags).where(like(videoTags.videoId, 'demo-video-%')), 'video_tags');
+  await safeDelete(() => db.delete(dailyStats).where(like(dailyStats.videoId, 'demo-video-%')), 'daily_stats');
+  await safeDelete(() => db.delete(videoFavorites).where(like(videoFavorites.videoId, 'demo-video-%')), 'video_favorites');
+  await safeDelete(() => db.delete(videoViews).where(like(videoViews.videoId, 'demo-video-%')), 'video_views');
+  await safeDelete(() => db.delete(videoViewingSessions).where(like(videoViewingSessions.videoId, 'demo-video-%')), 'video_viewing_sessions');
+  await safeDelete(() => db.delete(demoLinkClicks).where(like(demoLinkClicks.videoId, 'demo-video-%')), 'demo_link_clicks');
+  await safeDelete(() => db.delete(creditTransactions).where(eq(creditTransactions.userId, 'demo-user-1')), 'credit_transactions');
+  await safeDelete(() => db.delete(videos).where(or(like(videos.id, 'demo-video-%'), eq(videos.creatorId, 'demo-user-1'))), 'videos');
+  await safeDelete(() => db.delete(users).where(eq(users.id, 'demo-user-1')), 'demo user');
   
   return res.status(200).json({
     success: true,
