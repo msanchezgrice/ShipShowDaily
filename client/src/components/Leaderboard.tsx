@@ -178,16 +178,16 @@ export default function Leaderboard({ items, sortBy = 'views', onSortChange }: L
                     </Avatar>
                     <div className="flex-1">
                       <p 
-                        className="font-medium text-foreground text-sm hover:text-primary cursor-pointer"
-                        onClick={() => navigate(`/profile/${item.creator.id}`)}
-                      >
-                        {getCreatorName(item.creator)}
-                      </p>
-                      <p 
-                        className="text-xs text-muted-foreground line-clamp-1 hover:text-primary cursor-pointer"
+                        className="font-medium text-foreground text-sm hover:text-primary cursor-pointer line-clamp-1"
                         onClick={() => navigate(`/video/${item.video.id}`)}
                       >
                         {item.video.title}
+                      </p>
+                      <p 
+                        className="text-xs text-muted-foreground hover:text-primary cursor-pointer"
+                        onClick={() => navigate(`/profile/${item.creator.id}`)}
+                      >
+                        {getCreatorName(item.creator)}
                       </p>
                       {item.video.tags && item.video.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">

@@ -7,7 +7,13 @@ import VideoPlayerWithTracking from "@/components/VideoPlayerWithTracking";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Calendar, ExternalLink, ArrowLeft, Heart } from "lucide-react";
+import { Eye, Calendar, ExternalLink, ArrowLeft, Heart, Share2, Copy, Check } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,6 +25,43 @@ export default function Watch() {
   const { toast } = useToast();
   const { getToken } = useAuth();
   const [isFavorited, setIsFavorited] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async (platform: string) => {
+    const shareUrl = `${window.location.origin}/video/${videoId}`;
+    const shareText = `Check out "${video?.title || 'this demo'}" on ShipShow!`;
+
+    // Track share
+    try {
+      const token = await getToken({ template: "__session" });
+      fetch(`/api/videos/${videoId}/share`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ platform }),
+      });
+    } catch (e) {}
+
+    switch (platform) {
+      case 'twitter':
+        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`, '_blank');
+        break;
+      case 'linkedin':
+        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank');
+        break;
+      case 'facebook':
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
+        break;
+      case 'copy':
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast({ title: "Link copied to clipboard!" });
+        break;
+    }
+  };
 
   // Fetch video details
   const { data: video, isLoading, error } = useQuery<any>({
@@ -123,7 +166,7 @@ export default function Watch() {
               <p className="text-foreground mb-6">{video.description}</p>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {video?.productUrl && (
                 <Button
                   onClick={async () => {
@@ -194,6 +237,30 @@ export default function Watch() {
               >
                 <Heart className={`h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
               </Button>
+              
+              {/* Share Button */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleShare('twitter')}>
+                    Share on Twitter/X
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShare('linkedin')}>
+                    Share on LinkedIn
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShare('facebook')}>
+                    Share on Facebook
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShare('copy')}>
+                    {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+                    {copied ? 'Copied!' : 'Copy Link'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </CardContent>
         </Card>
