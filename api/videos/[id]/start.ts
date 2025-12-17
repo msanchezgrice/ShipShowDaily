@@ -23,20 +23,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const postgres = (await import('postgres')).default;
     const { sql } = await import('drizzle-orm');
     const { drizzle } = await import('drizzle-orm/postgres-js');
-    const { createClerkClient } = await import('@clerk/clerk-sdk-node');
-
-    // Require authentication
-    const token = req.headers.authorization?.toString().replace('Bearer ', '');
-    if (!token || !process.env.CLERK_SECRET_KEY) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
-    const payload = await clerk.verifyToken(token);
-    if (!payload.sub) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-    const userId = payload.sub;
 
     const videoId = req.query.id as string;
     if (!videoId) {
@@ -54,25 +40,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'Video not found' });
     }
 
-    // Create viewing session
-    const sessionResult = await db.execute(sql`
-      INSERT INTO video_viewing_sessions (user_id, video_id, started_at)
-      VALUES (${userId}, ${videoId}, NOW())
-      RETURNING id
-    `);
+    // Try to get user ID if authenticated (optional)
+    let userId: string | null = null;
+    const token = req.headers.authorization?.toString().replace('Bearer ', '');
+    if (token && process.env.CLERK_SECRET_KEY) {
+      try {
+        const { createClerkClient } = await import('@clerk/clerk-sdk-node');
+        const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+        const payload = await clerk.verifyToken(token);
+        userId = payload.sub || null;
+      } catch {
+        // Token invalid or expired - continue as anonymous
+      }
+    }
 
-    // Increment total views on the video
+    let sessionId: string | null = null;
+
+    // Create viewing session only for authenticated users
+    if (userId) {
+      const sessionResult = await db.execute(sql`
+        INSERT INTO video_viewing_sessions (user_id, video_id, started_at)
+        VALUES (${userId}, ${videoId}, NOW())
+        RETURNING id
+      `);
+      sessionId = sessionResult[0]?.id as string;
+    }
+
+    // Always increment total views (for both anonymous and authenticated)
     await db.execute(sql`
       UPDATE videos SET total_views = COALESCE(total_views, 0) + 1 WHERE id = ${videoId}
     `);
 
     return res.status(200).json({ 
-      sessionId: sessionResult[0]?.id,
-      message: 'Video viewing session started',
+      sessionId,
+      message: 'Video view recorded',
     });
   } catch (error: any) {
     console.error('Start view error:', error);
-    return res.status(500).json({ error: error.message || 'Failed to start viewing session' });
+    return res.status(500).json({ error: error.message || 'Failed to record view' });
   } finally {
     if (client) await client.end();
   }

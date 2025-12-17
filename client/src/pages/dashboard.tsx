@@ -144,60 +144,60 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Stats Overview - 2x2 on mobile, 4 cols on desktop */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
           <Card className="bg-card border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-3 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm">Total Credits</p>
-                  <p className="text-2xl font-bold text-accent" data-testid="text-total-credits">
+                  <p className="text-muted-foreground text-xs md:text-sm">Credits</p>
+                  <p className="text-lg md:text-2xl font-bold text-accent" data-testid="text-total-credits">
                     {user?.credits || 0}
                   </p>
                 </div>
-                <Coins className="text-accent h-8 w-8" />
+                <Coins className="text-accent h-6 w-6 md:h-8 md:w-8" />
               </div>
             </CardContent>
           </Card>
           
           <Card className="bg-card border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-3 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm">Videos Uploaded</p>
-                  <p className="text-2xl font-bold text-foreground" data-testid="text-videos-uploaded">
+                  <p className="text-muted-foreground text-xs md:text-sm">Videos</p>
+                  <p className="text-lg md:text-2xl font-bold text-foreground" data-testid="text-videos-uploaded">
                     {userVideos.length}
                   </p>
                 </div>
-                <Video className="text-primary h-8 w-8" />
+                <Video className="text-primary h-6 w-6 md:h-8 md:w-8" />
               </div>
             </CardContent>
           </Card>
           
           <Card className="bg-card border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-3 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm">Total Views</p>
-                  <p className="text-2xl font-bold text-foreground" data-testid="text-total-views">
+                  <p className="text-muted-foreground text-xs md:text-sm">Total Views</p>
+                  <p className="text-lg md:text-2xl font-bold text-foreground" data-testid="text-total-views">
                     {totalViews.toLocaleString()}
                   </p>
                 </div>
-                <Eye className="text-purple-500 h-8 w-8" />
+                <Eye className="text-purple-500 h-6 w-6 md:h-8 md:w-8" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-card border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-3 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm">Today's Views</p>
-                  <p className="text-2xl font-bold text-foreground" data-testid="text-today-views">
+                  <p className="text-muted-foreground text-xs md:text-sm">Today</p>
+                  <p className="text-lg md:text-2xl font-bold text-foreground" data-testid="text-today-views">
                     {totalTodayViews.toLocaleString()}
                   </p>
                 </div>
-                <TrendingUp className="text-green-500 h-8 w-8" />
+                <TrendingUp className="text-green-500 h-6 w-6 md:h-8 md:w-8" />
               </div>
             </CardContent>
           </Card>

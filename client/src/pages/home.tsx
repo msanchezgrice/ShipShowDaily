@@ -101,59 +101,59 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Daily Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        {/* Daily Stats - 2x2 on mobile, 4 cols on desktop */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8 md:mb-12">
           <Card className="bg-card border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-3 md:p-6">
               <div className="flex items-center">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <Eye className="text-primary h-5 w-5" />
+                <div className="p-2 md:p-3 bg-primary/10 rounded-lg">
+                  <Eye className="text-primary h-4 w-4 md:h-5 md:w-5" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-muted-foreground text-sm">Total Views Today</p>
-                  <p className="text-2xl font-bold text-foreground">{stats?.totalViews?.toLocaleString() || 0}</p>
+                <div className="ml-2 md:ml-4">
+                  <p className="text-muted-foreground text-xs md:text-sm">Views Today</p>
+                  <p className="text-lg md:text-2xl font-bold text-foreground">{stats?.totalViews?.toLocaleString() || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card className="bg-card border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-3 md:p-6">
               <div className="flex items-center">
-                <div className="p-3 bg-accent/10 rounded-lg">
-                  <Video className="text-accent h-5 w-5" />
+                <div className="p-2 md:p-3 bg-accent/10 rounded-lg">
+                  <Video className="text-accent h-4 w-4 md:h-5 md:w-5" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-muted-foreground text-sm">Demos Submitted</p>
-                  <p className="text-2xl font-bold text-foreground">{stats?.demosSubmitted || 0}</p>
+                <div className="ml-2 md:ml-4">
+                  <p className="text-muted-foreground text-xs md:text-sm">Demos</p>
+                  <p className="text-lg md:text-2xl font-bold text-foreground">{stats?.demosSubmitted || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card className="bg-card border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-3 md:p-6">
               <div className="flex items-center">
-                <div className="p-3 bg-orange-500/10 rounded-lg">
-                  <Coins className="text-orange-500 h-5 w-5" />
+                <div className="p-2 md:p-3 bg-orange-500/10 rounded-lg">
+                  <Coins className="text-orange-500 h-4 w-4 md:h-5 md:w-5" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-muted-foreground text-sm">Credits Earned</p>
-                  <p className="text-2xl font-bold text-foreground">{stats?.creditsEarned?.toLocaleString() || 0}</p>
+                <div className="ml-2 md:ml-4">
+                  <p className="text-muted-foreground text-xs md:text-sm">Credits</p>
+                  <p className="text-lg md:text-2xl font-bold text-foreground">{stats?.creditsEarned?.toLocaleString() || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card className="bg-card border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-3 md:p-6">
               <div className="flex items-center">
-                <div className="p-3 bg-purple-500/10 rounded-lg">
-                  <Users className="text-purple-500 h-5 w-5" />
+                <div className="p-2 md:p-3 bg-purple-500/10 rounded-lg">
+                  <Users className="text-purple-500 h-4 w-4 md:h-5 md:w-5" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-muted-foreground text-sm">Active Users</p>
-                  <p className="text-2xl font-bold text-foreground">{stats?.activeUsers?.toLocaleString() || 0}</p>
+                <div className="ml-2 md:ml-4">
+                  <p className="text-muted-foreground text-xs md:text-sm">Users</p>
+                  <p className="text-lg md:text-2xl font-bold text-foreground">{stats?.activeUsers?.toLocaleString() || 0}</p>
                 </div>
               </div>
             </CardContent>
