@@ -1,11 +1,13 @@
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { createRequire } from 'module';
 import * as schema from "../../shared/schema";
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL must be set in environment variables");
 }
 
-// Use require for postgres to avoid ESM default import issues
+// Use createRequire to import postgres (ESM compatible)
+const require = createRequire(import.meta.url);
 const postgres = require('postgres');
 
 // Create postgres connection for Supabase
