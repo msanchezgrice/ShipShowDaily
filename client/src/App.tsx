@@ -3,7 +3,7 @@ import { queryClient, setAuthTokenGetter } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ClerkProvider, useAuth as useClerkAuth, ClerkLoaded, ClerkLoading } from "@clerk/clerk-react";
+import { ClerkProvider, useAuth as useClerkAuth, useUser, ClerkLoaded, ClerkLoading } from "@clerk/clerk-react";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
@@ -18,6 +18,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useEffect } from 'react';
 import { UploadQueueProvider } from '@/components/UploadQueue';
+import { initPostHog, identifyUser, resetUser, Analytics } from './lib/posthog';
 
 // Load Stripe with error handling
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY 
@@ -42,14 +43,17 @@ if (!CLERK_PUBLISHABLE_KEY) {
   console.error("Available env vars:", Object.keys(import.meta.env));
 }
 
+// Initialize PostHog on app load
+initPostHog();
+
 function AuthTokenSetter() {
-  const { getToken } = useClerkAuth();
+  const { getToken, isSignedIn } = useClerkAuth();
+  const { user } = useUser();
   
   useEffect(() => {
     // Set up the auth token getter for API requests
     setAuthTokenGetter(async () => {
       try {
-        // Get the session token using our custom template with user claims
         const token = await getToken({ template: "__session" });
         return token;
       } catch (error) {
@@ -58,6 +62,20 @@ function AuthTokenSetter() {
       }
     });
   }, [getToken]);
+
+  // Identify user in PostHog when they sign in
+  useEffect(() => {
+    if (isSignedIn && user) {
+      identifyUser(user.id, {
+        email: user.primaryEmailAddress?.emailAddress,
+        name: user.fullName,
+        created_at: user.createdAt,
+      });
+      Analytics.userSignedIn(user.id);
+    } else if (!isSignedIn) {
+      resetUser();
+    }
+  }, [isSignedIn, user]);
   
   return null;
 }

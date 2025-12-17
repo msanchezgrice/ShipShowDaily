@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Analytics } from "@/lib/posthog";
 import { 
   Heart, 
   Volume2, 
@@ -92,6 +93,7 @@ function FeedVideoItem({
       return response.json();
     },
     onSuccess: () => {
+      Analytics.videoFavorited(item.video.id, item.video.title);
       toast({
         title: "Added to favorites",
         description: "This demo has been added to your favorites",
@@ -178,6 +180,7 @@ function FeedVideoItem({
     );
     
     if (shouldOpen) {
+      Analytics.demoLinkClicked(item.video.id, item.video.productUrl);
       demoClickMutation.mutate();
       window.open(item.video.productUrl, "_blank", "noopener,noreferrer");
     }
@@ -347,6 +350,11 @@ function FeedVideoItem({
 export default function Feed() {
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Track feed open on mount
+  useEffect(() => {
+    Analytics.feedOpened();
+  }, []);
   
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(() => {

@@ -12,6 +12,7 @@ import { AuthStatus } from "@/components/AuthStatus";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError, redirectToSignInClient } from "@/lib/authUtils";
+import { Analytics } from "@/lib/posthog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -140,6 +141,12 @@ export default function SubmitDemo() {
       return await response.json();
     },
     onSuccess: (result, variables) => {
+      // Track video upload in analytics
+      const resultVideoId = result?.video?.id || result?.id;
+      if (resultVideoId) {
+        Analytics.videoUploaded(resultVideoId, variables.title, variables.tags);
+      }
+
       if (variables.mode === "import") {
         const createdTitle = result?.video?.title ?? variables.title;
         toast({
@@ -170,6 +177,8 @@ export default function SubmitDemo() {
       queryClient.invalidateQueries({ queryKey: ["/api/user/videos"] });
     },
     onError: (error, variables) => {
+      Analytics.videoUploadFailed(error instanceof Error ? error.message : 'Unknown error');
+      
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
