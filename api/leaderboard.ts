@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         COALESCE(u.email, 'Anonymous') as "creatorName",
         u.profile_image_url as "creatorImageUrl",
         COALESCE(v.total_views, 0) as "totalViews",
-        COALESCE((SELECT SUM(ct.amount) FROM credit_transactions ct WHERE ct.video_id = v.id AND ct.transaction_type = 'boost'), 0) as "boostAmount",
+        COALESCE((SELECT SUM(ct.amount) FROM credit_transactions ct WHERE ct.video_id = v.id AND ct.type = 'spent'), 0) as "boostAmount",
         v.is_active as "isActive"
       FROM videos v
       LEFT JOIN users u ON v.creator_id = u.id
