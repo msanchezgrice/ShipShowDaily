@@ -1,6 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getLeaderboard } from './_lib/data';
-import { trackEvent } from './_lib/analytics';
 
 // CORS helpers
 const ALLOWED_ORIGINS = ['https://shipshow.io', 'https://www.shipshow.io', 'http://localhost:3000', 'http://localhost:5173'];
@@ -15,6 +13,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   
   try {
+    // Dynamic imports for Vercel serverless
+    const { getLeaderboard } = await import('./_lib/data');
+    const { trackEvent } = await import('./_lib/analytics');
+    
     const limitParam = req.query?.limit;
     const limit = Math.min(limitParam ? parseInt(limitParam as string, 10) : 10, 50);
     

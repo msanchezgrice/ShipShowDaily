@@ -1,7 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClerkClient } from '@clerk/clerk-sdk-node';
-import { updateUserProfile } from '../_lib/data';
-import { trackEvent } from '../_lib/analytics';
 
 const ALLOWED_ORIGINS = ['https://shipshow.io', 'https://www.shipshow.io', 'http://localhost:3000', 'http://localhost:5173'];
 
@@ -16,6 +13,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'PATCH') return res.status(405).json({ error: 'Method not allowed' });
   
   try {
+    // Dynamic imports for Vercel serverless
+    const { createClerkClient } = await import('@clerk/clerk-sdk-node');
+    const { updateUserProfile } = await import('../_lib/data');
+    const { trackEvent } = await import('../_lib/analytics');
+    
     // Require authentication
     const token = req.headers.authorization?.toString().replace('Bearer ', '');
     if (!token || !process.env.CLERK_SECRET_KEY) {

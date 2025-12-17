@@ -1,7 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getFeedVideos } from './_lib/data';
-import { createClerkClient } from '@clerk/clerk-sdk-node';
-import { trackEvent } from './_lib/analytics';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -29,6 +26,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   
   try {
+    // Dynamic imports for Vercel serverless
+    const { createClerkClient } = await import('@clerk/clerk-sdk-node');
+    const { getFeedVideos } = await import('./_lib/data');
+    const { trackEvent } = await import('./_lib/analytics');
+    
     // Try to get user ID from auth token (optional - feed works for unauthenticated users too)
     let userId: string | null = null;
     const token = req.headers.authorization?.toString().replace('Bearer ', '');

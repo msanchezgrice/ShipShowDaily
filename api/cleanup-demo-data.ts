@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { deleteDemoData } from './_lib/data';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,6 +16,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   
   try {
+    // Dynamic import for Vercel serverless
+    const { deleteDemoData } = await import('./_lib/data');
     await deleteDemoData();
     return res.status(200).json({ success: true, message: 'Demo data deleted' });
   } catch (error: any) {

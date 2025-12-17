@@ -1,7 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClerkClient } from '@clerk/clerk-sdk-node';
-import { getVideo, toggleFavorite } from '../../_lib/data';
-import { trackFavorite } from '../../_lib/analytics';
 
 const ALLOWED_ORIGINS = ['https://shipshow.io', 'https://www.shipshow.io', 'http://localhost:3000', 'http://localhost:5173'];
 
@@ -16,6 +13,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   
   try {
+    // Dynamic imports for Vercel serverless
+    const { createClerkClient } = await import('@clerk/clerk-sdk-node');
+    const { getVideo, toggleFavorite } = await import('../../_lib/data');
+    const { trackFavorite } = await import('../../_lib/analytics');
+    
     // Get video ID from URL
     const videoId = req.query.id as string;
     if (!videoId) {

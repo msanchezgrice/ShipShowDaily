@@ -1,10 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getUser, getFeedVideos, getTodayStats } from './_lib/data';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   
   try {
+    // Dynamic import for Vercel serverless
+    const { getFeedVideos, getTodayStats } = await import('./_lib/data');
+    
     // Test the new data layer
     const stats = await getTodayStats();
     const feed = await getFeedVideos({ limit: 3 });
