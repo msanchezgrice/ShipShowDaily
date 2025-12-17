@@ -15,7 +15,29 @@
   "outputDirectory": "dist/public",
   "installCommand": "npm install",
   "framework": null,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/video/:id",
+      "destination": "/api/video/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest).*"
+        }
+      ]
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"

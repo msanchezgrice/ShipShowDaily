@@ -38,13 +38,43 @@ export default function VideoPage() {
   useEffect(() => {
     if (videoData?.video) {
       const video = videoData.video;
+      const creator = videoData.creator;
+      const creatorName = creator?.firstName && creator?.lastName
+        ? `${creator.firstName} ${creator.lastName}`
+        : creator?.email?.split('@')[0] || 'Anonymous';
+      
       document.title = `${video.title} | ShipShow`;
       
       // Update meta description
-      const metaDesc = document.querySelector('meta[name="description"]');
-      if (metaDesc) {
-        metaDesc.setAttribute('content', video.description || `Watch ${video.title} on ShipShow`);
-      }
+      const updateMeta = (selector: string, attr: string, value: string) => {
+        let el = document.querySelector(selector);
+        if (!el) {
+          el = document.createElement('meta');
+          if (selector.includes('property=')) {
+            el.setAttribute('property', selector.match(/property="([^"]+)"/)?.[1] || '');
+          } else if (selector.includes('name=')) {
+            el.setAttribute('name', selector.match(/name="([^"]+)"/)?.[1] || '');
+          }
+          document.head.appendChild(el);
+        }
+        el.setAttribute(attr, value);
+      };
+
+      const description = video.description || `Watch ${video.title} on ShipShow`;
+      const imageUrl = video.thumbnailPath || 'https://www.shipshow.io/og-image.png';
+      const pageUrl = `https://www.shipshow.io/video/${video.id}`;
+
+      updateMeta('meta[name="description"]', 'content', description);
+      updateMeta('meta[property="og:title"]', 'content', `${video.title} | ShipShow`);
+      updateMeta('meta[property="og:description"]', 'content', description);
+      updateMeta('meta[property="og:image"]', 'content', imageUrl);
+      updateMeta('meta[property="og:url"]', 'content', pageUrl);
+      updateMeta('meta[property="og:type"]', 'content', 'video.other');
+      updateMeta('meta[name="twitter:card"]', 'content', 'summary_large_image');
+      updateMeta('meta[name="twitter:title"]', 'content', `${video.title} | ShipShow`);
+      updateMeta('meta[name="twitter:description"]', 'content', description);
+      updateMeta('meta[name="twitter:image"]', 'content', imageUrl);
+      updateMeta('meta[name="author"]', 'content', creatorName);
     }
     return () => {
       document.title = 'ShipShow - Daily Demo Leaderboard';
