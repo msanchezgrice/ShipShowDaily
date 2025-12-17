@@ -31,6 +31,8 @@ interface VideoPlayerProps {
     hls_url?: string;
     thumbnailPath?: string;
     duration_s?: number;
+    // Favorite status
+    isFavorited?: boolean;
   };
   onClose: () => void;
 }
@@ -43,7 +45,7 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
   const [hasEarnedCredit, setHasEarnedCredit] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(video.isFavorited || false);
   const [buffering, setBuffering] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -211,13 +213,14 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
         method: "POST",
       });
     },
-    onSuccess: () => {
-      setIsFavorited((prev) => !prev);
+    onSuccess: (data: any) => {
+      const newFavorited = data.favorited;
+      setIsFavorited(newFavorited);
       toast({
-        title: isFavorited ? "Removed from favorites" : "Added to favorites",
-        description: isFavorited
-          ? "Video removed from your favorites"
-          : "Video added to your favorites",
+        title: newFavorited ? "Added to favorites" : "Removed from favorites",
+        description: newFavorited
+          ? "Video added to your favorites"
+          : "Video removed from your favorites",
       });
     },
     onError: (error: any) => {

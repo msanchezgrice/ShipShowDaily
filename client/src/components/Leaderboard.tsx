@@ -203,54 +203,15 @@ export default function Leaderboard({ items, sortBy = 'views', onSortChange }: L
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center justify-end space-x-3">
-                    {/* Primary metric */}
-                    <div className="text-right">
-                      <div className="flex items-center justify-end">
-                        <MetricIcon className="h-3 w-3 mr-1 text-muted-foreground" />
-                        <p className={`font-semibold ${
-                          item.position === 1 ? 'text-accent' : 'text-foreground'
-                        }`}>
-                          {getMetricValue(item).toLocaleString()}
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{getMetricLabel()}</p>
-                    </div>
-                    
-                    {/* Secondary metrics (when not primary) */}
-                    {sortBy !== 'views' && (
-                      <div className="text-right opacity-70">
-                        <div className="flex items-center justify-end">
-                          <Eye className="h-2 w-2 mr-1 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                            {item.views.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {sortBy !== 'favorites' && item.favorites !== undefined && (
-                      <div className="text-right opacity-70">
-                        <div className="flex items-center justify-end">
-                          <Heart className="h-2 w-2 mr-1 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                            {item.favorites.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {sortBy !== 'demo_clicks' && item.demoClicks !== undefined && (
-                      <div className="text-right opacity-70">
-                        <div className="flex items-center justify-end">
-                          <ExternalLink className="h-2 w-2 mr-1 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                            {item.demoClicks.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  {/* Primary metric */}
+                  <div className="flex items-center">
+                    <MetricIcon className="h-3 w-3 mr-1 text-muted-foreground" />
+                    <span className={`font-semibold text-sm ${
+                      item.position === 1 ? 'text-accent' : 'text-foreground'
+                    }`}>
+                      {getMetricValue(item)}
+                    </span>
                   </div>
                 </div>
               </div>

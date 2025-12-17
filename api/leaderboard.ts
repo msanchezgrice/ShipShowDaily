@@ -47,6 +47,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         u.profile_image_url as "creatorImageUrl",
         COALESCE(v.total_views, 0) as "totalViews",
         COALESCE((SELECT SUM(ct.amount) FROM credit_transactions ct WHERE ct.video_id = v.id AND ct.type = 'spent'), 0) as "boostAmount",
+        COALESCE((SELECT COUNT(*) FROM video_favorites vf WHERE vf.video_id = v.id), 0) as "favorites",
+        COALESCE((SELECT COUNT(*) FROM demo_link_clicks dlc WHERE dlc.video_id = v.id), 0) as "demoClicks",
         v.is_active as "isActive"
       FROM videos v
       LEFT JOIN users u ON v.creator_id = u.id
@@ -62,9 +64,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       productUrl: row.productUrl || '',
       videoPath: row.videoPath || '',
       thumbnailPath: row.thumbnailPath || null,
-      totalViews: row.totalViews || 0,
-      views: 0,
-      creditsSpent: row.boostAmount || 0,
+      totalViews: parseInt(row.totalViews) || 0,
+      views: parseInt(row.totalViews) || 0,
+      favorites: parseInt(row.favorites) || 0,
+      demoClicks: parseInt(row.demoClicks) || 0,
+      creditsSpent: parseInt(row.boostAmount) || 0,
       isActive: row.isActive || false,
       creator: {
         id: row.creatorId || '',

@@ -37,6 +37,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     const db = drizzle(client);
 
+    // Get total views today
+    const viewsResult = await db.execute(sql`
+      SELECT COALESCE(SUM(total_views), 0) as total FROM videos WHERE is_active = true
+    `);
+    
     // Get video count
     const videoResult = await db.execute(sql`
       SELECT COUNT(*) as count FROM videos WHERE is_active = true
@@ -46,12 +51,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userResult = await db.execute(sql`
       SELECT COUNT(*) as count FROM users
     `);
+
+    // Get total credits earned
+    const creditsResult = await db.execute(sql`
+      SELECT COALESCE(SUM(total_credits_earned), 0) as total FROM users
+    `);
     
     // Return simple stats
     const stats = {
-      totalViews: 0,
+      totalViews: parseInt(viewsResult[0]?.total as string || '0'),
       totalDemos: parseInt(videoResult[0]?.count as string || '0'),
-      totalCreditsEarned: 0,
+      totalCreditsEarned: parseInt(creditsResult[0]?.total as string || '0'),
       activeUsers: parseInt(userResult[0]?.count as string || '0')
     };
     
