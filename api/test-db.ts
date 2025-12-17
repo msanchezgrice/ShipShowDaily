@@ -3,55 +3,43 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
   try {
-    // Dynamic imports to avoid build issues
+    // Dynamic imports only - no static imports at all
     const { drizzle } = await import('drizzle-orm/postgres-js');
     const postgres = (await import('postgres')).default;
-    const { sql } = await import('drizzle-orm');
+    const { eq } = await import('drizzle-orm');
+    const { users } = await import('../../shared/schema');
     
-    const client = postgres(process.env.DATABASE_URL!, {
+    if (!process.env.DATABASE_URL) {
+      return res.status(200).json({ success: false, error: 'DATABASE_URL not set' });
+    }
+    
+    const sql = postgres(process.env.DATABASE_URL, {
       max: 1,
       idle_timeout: 20,
       connect_timeout: 10,
       ssl: 'require',
       prepare: false,
     });
-    const db = drizzle(client);
     
-    // Test basic connection
-    const timeResult = await db.execute(sql`SELECT NOW() as current_time`);
+    const db = drizzle(sql);
     
-    // Check which tables exist
-    const tablesResult = await db.execute(sql`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      ORDER BY table_name
-    `);
+    // Test a simple query
+    const result = await db.select().from(users).limit(1);
     
-    // Check if users table has any data
-    const usersCount = await db.execute(sql`SELECT COUNT(*) as count FROM users`);
-    
-    await client.end();
+    await sql.end();
     
     return res.status(200).json({
       success: true,
-      timestamp: timeResult[0]?.current_time || new Date().toISOString(),
-      tables: tablesResult?.map(row => row.table_name) || [],
-      usersCount: parseInt(usersCount[0]?.count || '0'),
-      message: 'Database connection working'
+      userCount: result.length,
+      firstUser: result[0] ? { id: result[0].id, email: result[0].email } : null
     });
     
-  } catch (error: any) {
-    console.error('Database test error:', error);
-    return res.status(500).json({
-      error: error.message,
-      type: error.constructor.name,
-      detail: error.detail || error.stack?.split('\n')[0]
+  } catch (e: any) {
+    return res.status(200).json({
+      success: false,
+      error: e.message,
+      stack: e.stack?.split('\n').slice(0, 5).join('\n')
     });
   }
 }
