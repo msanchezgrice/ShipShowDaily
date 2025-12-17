@@ -47,6 +47,7 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
   const [sessionStarted, setSessionStarted] = useState(false);
   const [isFavorited, setIsFavorited] = useState(video.isFavorited || false);
   const [buffering, setBuffering] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -136,9 +137,24 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
           });
         }
       } else {
-        // Use direct video source for S3 videos
+        // Use direct video source for S3 videos or external URLs
         videoElement.src = video.videoPath;
-        setIsLoading(false);
+        
+        // Add error handler for external videos that may be blocked
+        videoElement.onerror = () => {
+          setIsLoading(false);
+          const isExternalVideo = video.videoPath && !video.videoPath.includes('cloudflarestream.com');
+          if (isExternalVideo) {
+            setVideoError("This video cannot be played because the source has restricted access. The video may have been moved or the source doesn't allow embedding.");
+          } else {
+            setVideoError("Failed to load video. Please try again later.");
+          }
+        };
+        
+        videoElement.onloadeddata = () => {
+          setIsLoading(false);
+          setVideoError(null);
+        };
       }
     };
 
@@ -378,6 +394,26 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                 <Loader2 className="h-12 w-12 text-white animate-spin" />
+              </div>
+            )}
+
+            {/* Error overlay */}
+            {videoError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 p-6 text-center">
+                <div className="text-red-400 mb-4">
+                  <svg className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-white text-lg font-semibold mb-2">Video Unavailable</h3>
+                <p className="text-gray-400 text-sm max-w-md mb-4">{videoError}</p>
+                <Button
+                  onClick={() => window.open(video.productUrl, "_blank")}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Visit Product Page
+                </Button>
               </div>
             )}
 
