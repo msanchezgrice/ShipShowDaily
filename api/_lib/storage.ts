@@ -636,6 +636,7 @@ export async function getDemoLinkClickCount(videoId: string) {
 }
 
 // Feed operations (already exists in storage-adapter.ts)
+import { getFeedVideos as getFeedVideosFromAdapter } from './storage-adapter';
 export { getFeedVideos } from './storage-adapter';
 
 // Export storage object for compatibility
@@ -674,8 +675,10 @@ export const storage = {
   addTagsToVideo,
   favoriteVideo,
   isVideoFavorited,
+  toggleFavorite,
+  unfavoriteVideo,
   getUserFavoriteVideos,
   recordDemoLinkClick,
   getDemoLinkClickCount,
-  getFeedVideos: (params: any) => require('./storage-adapter').getFeedVideos(params),
+  getFeedVideos: getFeedVideosFromAdapter,
 };
