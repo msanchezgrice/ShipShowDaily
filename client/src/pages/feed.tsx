@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -60,7 +61,8 @@ function FeedVideoItem({
   isActive,
   isMuted,
   onToggleMute,
-  onNavigateNext
+  onNavigateNext,
+  onNavigateToVideo
 }: {
   item: FeedVideo;
   currentIndex: number;
@@ -69,6 +71,7 @@ function FeedVideoItem({
   isMuted: boolean;
   onToggleMute: () => void;
   onNavigateNext: () => void;
+  onNavigateToVideo: (videoId: string) => void;
 }) {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -282,12 +285,26 @@ function FeedVideoItem({
           </div>
 
           {/* Title & Description */}
-          <h3 className="text-white text-xl font-bold mb-2" data-testid={`title-${item.video.id}`}>
+          <h3 
+            className="text-white text-xl font-bold mb-2 hover:text-primary cursor-pointer"
+            onClick={() => onNavigateToVideo(item.video.id)}
+            data-testid={`title-${item.video.id}`}
+          >
             {item.video.title}
           </h3>
-          <p className="text-white/90 text-sm mb-3 line-clamp-2" data-testid={`description-${item.video.id}`}>
+          <p className="text-white/90 text-sm mb-2 line-clamp-2" data-testid={`description-${item.video.id}`}>
             {item.video.description}
           </p>
+          
+          {/* Product URL */}
+          {item.video.productUrl && (
+            <p 
+              className="text-primary text-sm mb-3 truncate hover:underline cursor-pointer"
+              onClick={handleTryProduct}
+            >
+              {item.video.productUrl}
+            </p>
+          )}
 
           {/* Tags */}
           {item.tags.length > 0 && (
@@ -357,6 +374,7 @@ function FeedVideoItem({
 export default function Feed() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   
   // Track feed open on mount
   useEffect(() => {
@@ -435,6 +453,10 @@ export default function Feed() {
       scrollToVideo(nextIndex);
     }
   }, [currentIndex, feedVideos.length]);
+
+  const navigateToVideo = useCallback((videoId: string) => {
+    navigate(`/video/${videoId}`);
+  }, [navigate]);
 
   const navigateToPrevious = useCallback(() => {
     if (currentIndex > 0) {
@@ -556,6 +578,7 @@ export default function Feed() {
               isMuted={isMuted}
               onToggleMute={toggleMute}
               onNavigateNext={navigateToNext}
+              onNavigateToVideo={navigateToVideo}
             />
           </div>
         ))}

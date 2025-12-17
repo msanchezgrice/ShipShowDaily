@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Play, Eye, ExternalLink, Crown, Hash } from "lucide-react";
+import { Play, Eye, ExternalLink, Crown, Hash, Heart } from "lucide-react";
 
 interface VideoCardProps {
   video: {
@@ -26,6 +29,7 @@ interface VideoCardProps {
       id: string;
       name: string;
     }>;
+    isFavorited?: boolean;
   };
   position: number;
   onPlay: () => void;
@@ -34,7 +38,30 @@ interface VideoCardProps {
 
 export default function VideoCard({ video, position, onPlay, onTagClick }: VideoCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(video.isFavorited || false);
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const favoriteMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/videos/${video.id}/favorite`, { method: "POST" });
+    },
+    onSuccess: async (response) => {
+      const data = await response.json();
+      setIsFavorited(data.favorited);
+      toast({
+        title: data.favorited ? "Added to favorites" : "Removed from favorites",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/videos/simple-top"] });
+    },
+    onError: () => {
+      toast({
+        title: "Please sign in to favorite videos",
+        variant: "destructive",
+      });
+    },
+  });
 
   const getPositionBadge = () => {
     const colors = {
@@ -111,6 +138,22 @@ export default function VideoCard({ video, position, onPlay, onTagClick }: Video
             <Eye className="mr-1 h-3 w-3" />
             {video.todayViews}
           </Badge>
+          
+          {/* Favorite Button */}
+          <Button
+            size="icon"
+            variant="ghost"
+            className={`absolute bottom-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm ${
+              isFavorited ? "text-red-500" : "text-foreground hover:text-red-500"
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              favoriteMutation.mutate();
+            }}
+            disabled={favoriteMutation.isPending}
+          >
+            <Heart className={`h-4 w-4 ${isFavorited ? "fill-current" : ""}`} />
+          </Button>
           
           {/* Duration */}
           <Badge variant="secondary" className="absolute bottom-3 left-3 bg-background/80 backdrop-blur-sm text-foreground text-xs">
