@@ -23,7 +23,7 @@ export async function getDatabase() {
   // Dynamic imports for serverless compatibility
   const { drizzle } = await import('drizzle-orm/postgres-js');
   const postgres = (await import('postgres')).default;
-  const schema = await import('../shared/schema');
+  const schema = await import('../../shared/schema');
   
   _sql = postgres(process.env.DATABASE_URL, {
     max: 1,
@@ -45,7 +45,7 @@ export async function getDatabase() {
 export async function withDb<T>(
   operation: (ctx: { 
     db: PostgresJsDatabase<any>; 
-    schema: typeof import('../shared/schema');
+    schema: typeof import('../../shared/schema');
     eq: typeof import('drizzle-orm').eq;
     desc: typeof import('drizzle-orm').desc;
     and: typeof import('drizzle-orm').and;
@@ -57,7 +57,7 @@ export async function withDb<T>(
   }) => Promise<T>
 ): Promise<T> {
   const { db } = await getDatabase();
-  const schema = await import('../shared/schema');
+  const schema = await import('../../shared/schema');
   const drizzleOps = await import('drizzle-orm');
   
   return operation({
