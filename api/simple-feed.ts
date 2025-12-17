@@ -1,11 +1,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from 'drizzle-orm';
+import { createClerkClient } from '@clerk/clerk-sdk-node';
+
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  'https://shipshow.io',
+  'https://www.shipshow.io',
+  'http://localhost:3000',
+  'http://localhost:5173',
+];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin as string;
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400');
   
   // Handle preflight requests
@@ -25,9 +37,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: "DATABASE_URL not set" });
     }
 
-    // Get limit from query params
+    // Try to get user ID from auth token (optional - feed works for unauthenticated users too)
+    let userId: string | null = null;
+    const token = req.headers.authorization?.toString().replace('Bearer ', '');
+    if (token && process.env.CLERK_SECRET_KEY) {
+      try {
+        const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+        const payload = await clerk.verifyToken(token);
+        userId = payload.sub || null;
+      } catch {
+        // Ignore auth errors - feed works without auth
+      }
+    }
+
+    // Get limit from query params (capped at 100)
     const limitParam = req.query?.limit;
-    const limit = limitParam ? parseInt(limitParam as string, 10) : 20;
+    const limit = Math.min(limitParam ? parseInt(limitParam as string, 10) : 20, 100);
 
     // Dynamic import of postgres
     const postgres = (await import('postgres')).default;
@@ -42,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { drizzle } = await import('drizzle-orm/postgres-js');
     const db = drizzle(client);
 
-    // Get all active videos ordered by total views (same as leaderboard)
+    // Get all active videos ordered by total views, including favorite status if user is logged in
     const result = await db.execute(sql`
       SELECT 
         v.id,
@@ -53,12 +78,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         v.thumbnail_path as "thumbnailPath",
         v.creator_id as "creatorId",
         COALESCE(u.email, 'Anonymous') as "creatorName",
+        u.first_name as "creatorFirstName",
+        u.last_name as "creatorLastName",
         u.profile_image_url as "creatorImageUrl",
         COALESCE(v.total_views, 0) as "totalViews",
-        0 as views,
-        0 as "creditsSpent",
+        v.hls_url as "hlsUrl",
+        v.provider,
+        v.status,
         v.is_active as "isActive",
-        v.created_at as "createdAt"
+        v.created_at as "createdAt",
+        ${userId ? sql`EXISTS(SELECT 1 FROM video_favorites vf WHERE vf.video_id = v.id AND vf.user_id = ${userId})` : sql`false`} as "isFavorited"
       FROM videos v
       LEFT JOIN users u ON v.creator_id = u.id
       WHERE v.is_active = true
@@ -73,22 +102,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         title: row.title || '',
         description: row.description || '',
         productUrl: row.productUrl || '',
-        videoPath: row.videoPath || '',
+        videoPath: row.videoPath || row.hlsUrl || '',
         thumbnailPath: row.thumbnailPath || null,
         creatorId: row.creatorId,
         totalViews: row.totalViews || 0,
         isActive: row.isActive || false,
-        createdAt: row.createdAt
+        createdAt: row.createdAt,
+        provider: row.provider,
+        status: row.status,
+        hls_url: row.hlsUrl
       },
       creator: {
         id: row.creatorId || '',
-        name: row.creatorName || 'Anonymous',
+        firstName: row.creatorFirstName,
+        lastName: row.creatorLastName,
+        email: row.creatorName,
         profileImageUrl: row.creatorImageUrl || null
       },
       tags: [],
-      todayViews: row.views || 0,
+      todayViews: 0,
       totalViews: row.totalViews || 0,
-      isFavorited: false,
+      isFavorited: row.isFavorited === true || row.isFavorited === 't',
       boostAmount: 0
     }));
     
