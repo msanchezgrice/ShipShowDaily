@@ -24,7 +24,11 @@ import {
   Award,
   Play,
   ExternalLink,
-  Trash2
+  Trash2,
+  Heart,
+  Share2,
+  MousePointerClick,
+  Activity
 } from "lucide-react";
 import {
   AlertDialog,
@@ -73,6 +77,12 @@ export default function Dashboard() {
   const { data: creditTransactions = [] } = useQuery<any[]>({
     queryKey: ["/api/credits/transactions"],
     enabled: isAuthenticated,
+  });
+
+  const { data: analytics } = useQuery<any>({
+    queryKey: ["/api/user/analytics"],
+    enabled: isAuthenticated,
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   const boostMutation = useMutation({
@@ -186,60 +196,105 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Stats Overview - 2x2 on mobile, 4 cols on desktop */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
-          <Card className="bg-card border-border">
-            <CardContent className="p-3 md:p-6">
+        {/* Stats Overview - 2 rows of stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
+          <Card className="bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20">
+            <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-xs md:text-sm">Credits</p>
-                  <p className="text-lg md:text-2xl font-bold text-accent" data-testid="text-total-credits">
+                  <p className="text-muted-foreground text-xs">Credits</p>
+                  <p className="text-lg md:text-xl font-bold text-accent" data-testid="text-total-credits">
                     {user?.credits || 0}
                   </p>
                 </div>
-                <Coins className="text-accent h-6 w-6 md:h-8 md:w-8" />
+                <Coins className="text-accent h-5 w-5 md:h-6 md:w-6" />
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-card border-border">
-            <CardContent className="p-3 md:p-6">
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+            <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-xs md:text-sm">Videos</p>
-                  <p className="text-lg md:text-2xl font-bold text-foreground" data-testid="text-videos-uploaded">
+                  <p className="text-muted-foreground text-xs">Videos</p>
+                  <p className="text-lg md:text-xl font-bold text-foreground" data-testid="text-videos-uploaded">
                     {userVideos.length}
                   </p>
                 </div>
-                <Video className="text-primary h-6 w-6 md:h-8 md:w-8" />
+                <Video className="text-primary h-5 w-5 md:h-6 md:w-6" />
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-card border-border">
-            <CardContent className="p-3 md:p-6">
+          <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
+            <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-xs md:text-sm">Total Views</p>
-                  <p className="text-lg md:text-2xl font-bold text-foreground" data-testid="text-total-views">
-                    {totalViews.toLocaleString()}
+                  <p className="text-muted-foreground text-xs">Total Views</p>
+                  <p className="text-lg md:text-xl font-bold text-foreground" data-testid="text-total-views">
+                    {(analytics?.overview?.totalViews || totalViews).toLocaleString()}
                   </p>
                 </div>
-                <Eye className="text-purple-500 h-6 w-6 md:h-8 md:w-8" />
+                <Eye className="text-purple-500 h-5 w-5 md:h-6 md:w-6" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-card border-border">
-            <CardContent className="p-3 md:p-6">
+          <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+            <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-xs md:text-sm">Today</p>
-                  <p className="text-lg md:text-2xl font-bold text-foreground" data-testid="text-today-views">
+                  <p className="text-muted-foreground text-xs">Today</p>
+                  <p className="text-lg md:text-xl font-bold text-foreground" data-testid="text-today-views">
                     {totalTodayViews.toLocaleString()}
                   </p>
                 </div>
-                <TrendingUp className="text-green-500 h-6 w-6 md:h-8 md:w-8" />
+                <TrendingUp className="text-green-500 h-5 w-5 md:h-6 md:w-6" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Second row of stats */}
+        <div className="grid grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+          <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted-foreground text-xs">Favorites</p>
+                  <p className="text-lg md:text-xl font-bold text-foreground">
+                    {(analytics?.overview?.totalFavorites || 0).toLocaleString()}
+                  </p>
+                </div>
+                <Heart className="text-red-500 h-5 w-5 md:h-6 md:w-6" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted-foreground text-xs">Demo Clicks</p>
+                  <p className="text-lg md:text-xl font-bold text-foreground">
+                    {(analytics?.overview?.totalDemoClicks || 0).toLocaleString()}
+                  </p>
+                </div>
+                <MousePointerClick className="text-blue-500 h-5 w-5 md:h-6 md:w-6" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted-foreground text-xs">Shares</p>
+                  <p className="text-lg md:text-xl font-bold text-foreground">
+                    {(analytics?.overview?.totalShares || 0).toLocaleString()}
+                  </p>
+                </div>
+                <Share2 className="text-orange-500 h-5 w-5 md:h-6 md:w-6" />
               </div>
             </CardContent>
           </Card>
