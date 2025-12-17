@@ -68,12 +68,7 @@ export default function Settings() {
   // Profile update mutation
   const profileMutation = useMutation({
     mutationFn: async (data: ProfileFormData) => {
-      const response = await fetch("/api/profile/update", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Failed to update profile");
+      const response = await apiRequest("PATCH", "/api/profile/update", data);
       return response.json();
     },
     onSuccess: () => {
@@ -95,15 +90,7 @@ export default function Settings() {
   // Password update mutation
   const passwordMutation = useMutation({
     mutationFn: async (data: PasswordFormData) => {
-      const response = await fetch("/api/profile/password", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Failed to update password" }));
-        throw new Error(errorData.message);
-      }
+      const response = await apiRequest("PATCH", "/api/profile/password", data);
       return response.json();
     },
     onSuccess: () => {

@@ -10,6 +10,8 @@ interface LeaderboardItem {
   video: {
     id: string;
     title: string;
+    description?: string;
+    thumbnailPath?: string;
     tags?: Array<{ id: string; name: string }>;
   };
   creator: {
@@ -159,54 +161,56 @@ export default function Leaderboard({ items, sortBy = 'views', onSortChange }: L
                 }`}
                 data-testid={`leaderboard-item-${item.position}`}
               >
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
                   <Badge
-                    className={`${getPositionColor(item.position)} font-bold min-w-[2rem] justify-center`}
+                    className={`${getPositionColor(item.position)} font-bold min-w-[2rem] justify-center flex-shrink-0`}
                   >
                     {item.position}
                     {item.position === 1 && <Crown className="ml-1 h-3 w-3" />}
                   </Badge>
-                  <div className="flex items-center space-x-3 flex-1">
-                    <Avatar 
-                      className="h-8 w-8 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => navigate(`/profile/${item.creator.id}`)}
+                  {/* Video thumbnail */}
+                  <div 
+                    className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-secondary cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => navigate(`/video/${item.video.id}`)}
+                  >
+                    {item.video.thumbnailPath ? (
+                      <img 
+                        src={item.video.thumbnailPath} 
+                        alt={item.video.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-primary/20">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p 
+                      className="font-medium text-foreground text-sm hover:text-primary cursor-pointer line-clamp-1"
+                      onClick={() => navigate(`/video/${item.video.id}`)}
                     >
-                      <AvatarImage src={item.creator?.profileImageUrl || undefined} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                        {getCreatorInitial(item.creator)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p 
-                        className="font-medium text-foreground text-sm hover:text-primary cursor-pointer line-clamp-1"
-                        onClick={() => navigate(`/video/${item.video.id}`)}
-                      >
-                        {item.video.title}
+                      {item.video.title}
+                    </p>
+                    {item.video.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        {item.video.description}
                       </p>
-                      <p 
-                        className="text-xs text-muted-foreground hover:text-primary cursor-pointer"
-                        onClick={() => navigate(`/profile/${item.creator.id}`)}
-                      >
-                        {getCreatorName(item.creator)}
-                      </p>
-                      {item.video.tags && item.video.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {item.video.tags.slice(0, 3).map((tag) => (
-                            <Badge
-                              key={tag.id}
-                              variant="secondary"
-                              className="text-xs px-1 py-0 h-4"
-                            >
-                              <Hash className="h-2 w-2 mr-0.5" />
-                              {tag.name}
-                            </Badge>
-                          ))}
-                          {item.video.tags.length > 3 && (
-                            <span className="text-xs text-muted-foreground">+{item.video.tags.length - 3} more</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    )}
+                    {item.video.tags && item.video.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {item.video.tags.slice(0, 3).map((tag) => (
+                          <Badge
+                            key={tag.id}
+                            variant="secondary"
+                            className="text-xs px-1 py-0 h-4"
+                          >
+                            <Hash className="h-2 w-2 mr-0.5" />
+                            {tag.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 flex-shrink-0">

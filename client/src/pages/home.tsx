@@ -252,13 +252,14 @@ export default function Home() {
                 video: {
                   id: item.id,
                   title: item.title || '',
+                  description: item.description || '',
+                  thumbnailPath: item.thumbnailPath,
                   tags: item.tags
                 },
                 creator: {
-                  id: item.creator?.id || item.creatorId || '',
-                  firstName: item.creator?.name?.split(' ')[0],
-                  lastName: item.creator?.name?.split(' ').slice(1).join(' '),
-                  email: item.creator?.name || '',
+                  id: item.creator?.id || '',
+                  firstName: item.creator?.firstName,
+                  lastName: item.creator?.lastName,
                   profileImageUrl: item.creator?.profileImageUrl
                 },
                 views: item.totalViews || item.views || 0,

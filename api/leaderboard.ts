@@ -43,7 +43,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         v.video_path as "videoPath",
         v.thumbnail_path as "thumbnailPath",
         v.creator_id as "creatorId",
-        COALESCE(u.email, 'Anonymous') as "creatorName",
+        u.first_name as "creatorFirstName",
+        u.last_name as "creatorLastName",
         u.profile_image_url as "creatorImageUrl",
         COALESCE(v.total_views, 0) as "totalViews",
         COALESCE((SELECT SUM(ct.amount) FROM credit_transactions ct WHERE ct.video_id = v.id AND ct.type = 'spent'), 0) as "boostAmount",
@@ -56,6 +57,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ORDER BY "boostAmount" DESC, "totalViews" DESC, v.created_at DESC
       LIMIT ${limit}
     `);
+    
+    // Fetch tags for all videos
+    const videoIds = result.map((r: any) => r.id);
+    let tagsByVideo: Record<string, Array<{id: string, name: string}>> = {};
+    
+    if (videoIds.length > 0) {
+      const tagsResult = await db.execute(sql`
+        SELECT vt.video_id as "videoId", t.id, t.name
+        FROM video_tags vt
+        JOIN tags t ON vt.tag_id = t.id
+        WHERE vt.video_id = ANY(${videoIds}::uuid[])
+      `);
+      
+      for (const tag of tagsResult as any[]) {
+        if (!tagsByVideo[tag.videoId]) {
+          tagsByVideo[tag.videoId] = [];
+        }
+        tagsByVideo[tag.videoId].push({ id: tag.id, name: tag.name });
+      }
+    }
     
     const leaderboard = (result || []).map((row: any) => ({
       id: row.id,
@@ -70,9 +91,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       demoClicks: parseInt(row.demoClicks) || 0,
       creditsSpent: parseInt(row.boostAmount) || 0,
       isActive: row.isActive || false,
+      tags: tagsByVideo[row.id] || [],
       creator: {
         id: row.creatorId || '',
-        name: row.creatorName || 'Anonymous',
+        firstName: row.creatorFirstName || null,
+        lastName: row.creatorLastName || null,
         profileImageUrl: row.creatorImageUrl || null,
       },
     }));
