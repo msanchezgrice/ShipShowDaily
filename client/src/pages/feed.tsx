@@ -86,18 +86,25 @@ function FeedVideoItem({
     enabled: isActive && isPlaying
   });
 
-  // Favorite video mutation
+  // Favorite video mutation (toggle)
   const favoriteMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", `/api/videos/${item.video.id}/favorite`);
       return response.json();
     },
-    onSuccess: () => {
-      Analytics.videoFavorited(item.video.id, item.video.title);
-      toast({
-        title: "Added to favorites",
-        description: "This demo has been added to your favorites",
-      });
+    onSuccess: (data) => {
+      if (data.favorited) {
+        Analytics.videoFavorited(item.video.id, item.video.title);
+        toast({
+          title: "Added to favorites",
+          description: "This demo has been added to your favorites",
+        });
+      } else {
+        toast({
+          title: "Removed from favorites",
+          description: "This demo has been removed from your favorites",
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/simple-feed"] });
     },
   });
@@ -303,15 +310,15 @@ function FeedVideoItem({
 
       {/* Right Side Actions */}
       <div className="absolute right-4 bottom-32 flex flex-col gap-4">
-        {/* Favorite */}
+        {/* Favorite (toggle) */}
         <Button
           size="icon"
           variant="ghost"
           className={`h-12 w-12 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 ${
             item.isFavorited ? "text-red-500" : "text-white"
           }`}
-          onClick={() => !item.isFavorited && favoriteMutation.mutate()}
-          disabled={item.isFavorited || favoriteMutation.isPending}
+          onClick={() => favoriteMutation.mutate()}
+          disabled={favoriteMutation.isPending}
           data-testid={`button-favorite-${item.video.id}`}
         >
           <Heart className={`h-6 w-6 ${item.isFavorited ? "fill-current" : ""}`} />
@@ -370,7 +377,8 @@ export default function Feed() {
   const { data: feedVideos = [], isLoading } = useQuery<FeedVideo[]>({
     queryKey: ["/api/simple-feed"],
     queryFn: async () => {
-      const response = await fetch("/api/simple-feed?limit=20");
+      // Use apiRequest to include auth token for favorite status
+      const response = await apiRequest("GET", "/api/simple-feed?limit=20");
       if (!response.ok) throw new Error("Failed to fetch feed");
       return response.json();
     },
