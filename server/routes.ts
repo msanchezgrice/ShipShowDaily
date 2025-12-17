@@ -7,6 +7,24 @@ import { ObjectPermission } from "./objectAcl";
 import { insertVideoSchema, insertVideoWithTagsSchema, insertVideoViewSchema, insertCreditTransactionSchema, insertVideoFavoriteSchema, insertDemoLinkClickSchema } from "@shared/schema";
 import { z } from "zod";
 import Stripe from "stripe";
+
+// Pagination limits to prevent abuse
+const MAX_LIMIT = 100;
+const DEFAULT_LIMIT = 10;
+const MAX_OFFSET = 10000;
+
+// Helper to safely parse and cap pagination params
+function safeLimit(value: string | undefined, defaultVal = DEFAULT_LIMIT): number {
+  const parsed = parseInt(value || '', 10);
+  if (isNaN(parsed) || parsed < 1) return defaultVal;
+  return Math.min(parsed, MAX_LIMIT);
+}
+
+function safeOffset(value: string | undefined): number {
+  const parsed = parseInt(value || '', 10);
+  if (isNaN(parsed) || parsed < 0) return 0;
+  return Math.min(parsed, MAX_OFFSET);
+}
 import { scrapeProductPage, ScrapeError } from "./scraper";
 
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -172,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Specific GET routes
   app.get('/api/videos/top', async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = safeLimit(req.query.limit as string);
       const tagFilter = req.query.tag as string;
       const videos = await storage.getTopVideosTodayWithTags(limit, tagFilter);
       res.json(videos);
@@ -374,8 +392,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Feed route - TikTok-style paginated video feed
   app.get('/api/feed', async (req: any, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
-      const offset = parseInt(req.query.offset as string) || 0;
+      const limit = safeLimit(req.query.limit as string);
+      const offset = safeOffset(req.query.offset as string);
       const tagFilter = req.query.tag as string;
       
       // Get the authenticated user ID if available
@@ -800,10 +818,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get('/api/leaderboard', async (req, res) => {
-    console.log('[LEADERBOARD] Request:', req.query);
-
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = safeLimit(req.query.limit as string);
       const sortBy = (req.query.sortBy as string) || 'views';
       const tagFilter = req.query.tag as string;
 
