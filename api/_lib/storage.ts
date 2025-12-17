@@ -548,11 +548,23 @@ export async function addTagsToVideo(videoId: string, tagIds: string[]) {
 }
 
 // Favorites operations
-export async function favoriteVideo(favorite: any) {
+export async function favoriteVideo(favorite: { userId: string; videoId: string }) {
+  // First check if already favorited
+  const existing = await db
+    .select()
+    .from(videoFavorites)
+    .where(and(
+      eq(videoFavorites.userId, favorite.userId),
+      eq(videoFavorites.videoId, favorite.videoId)
+    ));
+  
+  if (existing.length > 0) {
+    return existing[0]; // Already favorited, return existing
+  }
+  
   const [newFavorite] = await db
     .insert(videoFavorites)
     .values(favorite)
-    .onConflictDoNothing()
     .returning();
   
   return newFavorite;
@@ -568,6 +580,27 @@ export async function isVideoFavorited(userId: string, videoId: string) {
     ));
   
   return result.length > 0;
+}
+
+export async function unfavoriteVideo(userId: string, videoId: string) {
+  await db
+    .delete(videoFavorites)
+    .where(and(
+      eq(videoFavorites.userId, userId),
+      eq(videoFavorites.videoId, videoId)
+    ));
+}
+
+export async function toggleFavorite(userId: string, videoId: string): Promise<{ favorited: boolean }> {
+  const isFavorited = await isVideoFavorited(userId, videoId);
+  
+  if (isFavorited) {
+    await unfavoriteVideo(userId, videoId);
+    return { favorited: false };
+  } else {
+    await favoriteVideo({ userId, videoId });
+    return { favorited: true };
+  }
 }
 
 export async function getUserFavoriteVideos(userId: string) {
