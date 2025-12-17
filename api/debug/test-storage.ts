@@ -1,15 +1,21 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../_lib/storage';
+import { initDb, db } from '../_lib/db';
+import { users } from '../../shared/schema';
+import { eq } from 'drizzle-orm';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   
   try {
-    const user = await storage.getUser('test-id-that-does-not-exist');
+    // Initialize db first
+    await initDb();
+    
+    // Test a simple query
+    const [user] = await db.select().from(users).where(eq(users.id, 'test-id')).limit(1);
     
     return res.status(200).json({
       success: true,
-      storageImported: true,
+      dbInitialized: true,
       userResult: user || 'no user found (expected)'
     });
     
