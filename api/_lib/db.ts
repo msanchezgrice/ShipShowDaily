@@ -1,28 +1,35 @@
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { createRequire } from 'module';
+import postgres from 'postgres';
 import * as schema from "../../shared/schema";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL must be set in environment variables");
+// Lazy initialization for serverless functions
+let _db: PostgresJsDatabase<typeof schema> | null = null;
+
+function getDb(): PostgresJsDatabase<typeof schema> {
+  if (_db) return _db;
+  
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL must be set in environment variables");
+  }
+  
+  const sql = postgres(process.env.DATABASE_URL, {
+    max: 1,
+    idle_timeout: 20,
+    connect_timeout: 10,
+    ssl: 'require',
+    prepare: false,
+  });
+  
+  _db = drizzle(sql, { schema });
+  return _db;
 }
 
-// Use createRequire to import postgres (ESM compatible)
-const require = createRequire(import.meta.url);
-const postgres = require('postgres');
-
-// Create postgres connection for Supabase
-const connectionString = process.env.DATABASE_URL;
-
-// Postgres.js configuration for Supabase
-const sql = postgres(connectionString, {
-  max: 1, // Serverless should use single connections
-  idle_timeout: 20,
-  connect_timeout: 10,
-  ssl: 'require', // Supabase requires SSL
-  prepare: false, // Disable prepared statements for serverless
+// Export a proxy that lazily initializes the db
+export const db = new Proxy({} as PostgresJsDatabase<typeof schema>, {
+  get(_, prop) {
+    return (getDb() as any)[prop];
+  }
 });
-
-export const db: PostgresJsDatabase<typeof schema> = drizzle(sql, { schema });
 
 // Export schema for convenience
 export * from "../../shared/schema";
