@@ -1,13 +1,28 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  'https://shipshow.io',
+  'https://www.shipshow.io',
+  'http://localhost:3000',
+  'http://localhost:5173',
+];
+
 // Helper to set CORS headers
-export function setCorsHeaders(res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+export function setCorsHeaders(res: VercelResponse, origin?: string) {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400');
 }
+
+// Pagination limits
+export const MAX_LIMIT = 100;
+export const DEFAULT_LIMIT = 10;
+export const MAX_OFFSET = 10000;
 
 // Helper to handle method validation
 export function validateMethod(req: VercelRequest, res: VercelResponse, allowedMethods: string[]): boolean {

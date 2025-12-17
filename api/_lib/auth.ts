@@ -27,22 +27,14 @@ export async function requireAuth(req: VercelRequest): Promise<{ userId: string;
   try {
     const token = req.headers.authorization?.toString().replace('Bearer ', '');
     
-    console.log('requireAuth - Token present:', !!token);
-    console.log('requireAuth - Token length:', token?.length || 0);
-    console.log('requireAuth - Token prefix:', token?.substring(0, 20) || 'none');
-    
     if (!token) {
-      console.log('requireAuth - No token provided');
       return null;
     }
 
     // Verify the JWT token
-    console.log('requireAuth - Attempting to verify token...');
     const payload = await clerk.verifyToken(token);
-    console.log('requireAuth - Token verified, payload:', { sub: payload.sub, iss: payload.iss });
     
     if (!payload.sub) {
-      console.log('requireAuth - No user ID in payload');
       return null;
     }
 
@@ -61,20 +53,27 @@ export async function requireAuth(req: VercelRequest): Promise<{ userId: string;
       user: clerkUser
     };
   } catch (error: any) {
-    console.error('requireAuth - Authentication error:', {
-      message: error.message,
-      type: error.constructor.name,
-      stack: error.stack?.split('\n')[0] // First line of stack trace
-    });
+    // Only log error type, not sensitive details
+    console.error('requireAuth - Authentication failed:', error.message);
     return null;
   }
 }
 
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  'https://shipshow.io',
+  'https://www.shipshow.io',
+  'http://localhost:3000',
+  'http://localhost:5173',
+];
+
 // Helper to set CORS headers
-function setCorsHeaders(res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+function setCorsHeaders(res: VercelResponse, origin?: string) {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
