@@ -12,11 +12,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   
+  let client;
+  
   try {
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({ error: 'DATABASE_URL not set' });
+    }
+
     // Dynamic imports for Vercel serverless
+    const postgres = (await import('postgres')).default;
+    const { sql } = await import('drizzle-orm');
+    const { drizzle } = await import('drizzle-orm/postgres-js');
     const { createClerkClient } = await import('@clerk/clerk-sdk-node');
-    const { getVideo, toggleFavorite } = await import('../../_lib/data');
-    const { trackFavorite } = await import('../../_lib/analytics');
     
     // Get video ID from URL
     const videoId = req.query.id as string;
@@ -37,28 +44,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const userId = payload.sub;
 
+    client = postgres(process.env.DATABASE_URL, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: 'require',
+      prepare: false,
+    });
+    const db = drizzle(client);
+
     // Check video exists
-    const video = await getVideo(videoId);
-    if (!video) {
+    const videoResult = await db.execute(sql`SELECT id, title FROM videos WHERE id = ${videoId}`);
+    if (!videoResult.length) {
       return res.status(404).json({ error: 'Video not found' });
     }
 
-    // Toggle favorite
-    const result = await toggleFavorite(userId, videoId);
-    
-    // Track in analytics (both logged-in and for aggregate stats)
-    trackFavorite(videoId, video.title, result.favorited, {
-      userId,
-      req: { headers: req.headers as Record<string, any> },
-    });
+    // Check if already favorited
+    const existingFav = await db.execute(sql`
+      SELECT id FROM video_favorites WHERE user_id = ${userId} AND video_id = ${videoId}
+    `);
+
+    let favorited: boolean;
+    if (existingFav.length > 0) {
+      // Remove favorite
+      await db.execute(sql`DELETE FROM video_favorites WHERE user_id = ${userId} AND video_id = ${videoId}`);
+      favorited = false;
+    } else {
+      // Add favorite
+      await db.execute(sql`
+        INSERT INTO video_favorites (user_id, video_id, created_at)
+        VALUES (${userId}, ${videoId}, NOW())
+      `);
+      favorited = true;
+    }
 
     return res.status(200).json({
       success: true,
-      favorited: result.favorited,
-      message: result.favorited ? 'Added to favorites' : 'Removed from favorites',
+      favorited,
+      message: favorited ? 'Added to favorites' : 'Removed from favorites',
     });
   } catch (error: any) {
     console.error('Favorite error:', error);
     return res.status(500).json({ error: error.message || 'Failed to toggle favorite' });
+  } finally {
+    if (client) await client.end();
   }
 }

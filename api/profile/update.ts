@@ -12,11 +12,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'PATCH') return res.status(405).json({ error: 'Method not allowed' });
   
+  let client;
+  
   try {
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({ error: 'DATABASE_URL not set' });
+    }
+
     // Dynamic imports for Vercel serverless
+    const postgres = (await import('postgres')).default;
+    const { sql } = await import('drizzle-orm');
+    const { drizzle } = await import('drizzle-orm/postgres-js');
     const { createClerkClient } = await import('@clerk/clerk-sdk-node');
-    const { updateUserProfile } = await import('../_lib/data');
-    const { trackEvent } = await import('../_lib/analytics');
     
     // Require authentication
     const token = req.headers.authorization?.toString().replace('Bearer ', '');
@@ -42,17 +49,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    await updateUserProfile(userId, { firstName, lastName, email });
-    
-    // Track profile update
-    trackEvent('profile_updated', {
-      userId,
-      req: { headers: req.headers as Record<string, any> },
+    client = postgres(process.env.DATABASE_URL, {
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: 'require',
+      prepare: false,
     });
+    const db = drizzle(client);
+
+    await db.execute(sql`
+      UPDATE users 
+      SET first_name = ${firstName}, last_name = ${lastName}, email = ${email}, updated_at = NOW()
+      WHERE id = ${userId}
+    `);
     
     return res.status(200).json({ success: true, message: 'Profile updated successfully' });
   } catch (error: any) {
     console.error('Profile update error:', error);
     return res.status(500).json({ error: error.message || 'Failed to update profile' });
+  } finally {
+    if (client) await client.end();
   }
 }
