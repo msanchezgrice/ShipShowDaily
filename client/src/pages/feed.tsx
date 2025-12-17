@@ -200,7 +200,7 @@ function FeedVideoItem({
 
   return (
     <div 
-      className="h-screen snap-start relative bg-black flex items-center justify-center"
+      className="h-screen md:h-[85vh] snap-start relative bg-black flex items-center justify-center"
       data-testid={`feed-item-${item.video.id}`}
     >
       {/* Progress Bar */}
@@ -509,38 +509,41 @@ export default function Feed() {
   }
 
   return (
-    <div 
-      ref={containerRef}
-      className="h-screen overflow-y-scroll snap-y snap-mandatory relative"
-      style={{ scrollBehavior: "smooth" }}
-      data-testid="feed-container"
-    >
-      {/* Exit Button */}
-      <button
-        onClick={() => window.location.href = '/'}
-        className="fixed top-4 right-4 z-50 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-colors backdrop-blur-sm"
-        data-testid="button-exit-feed"
-        aria-label="Exit to Leaderboard"
+    <div className="h-screen bg-black flex items-center justify-center">
+      {/* Desktop container - centered with max width, full width on mobile */}
+      <div 
+        ref={containerRef}
+        className="h-screen w-full md:w-[400px] lg:w-[450px] md:max-h-[85vh] md:rounded-xl md:shadow-2xl overflow-y-scroll snap-y snap-mandatory relative"
+        style={{ scrollBehavior: "smooth" }}
+        data-testid="feed-container"
       >
-        <X className="h-6 w-6" />
-      </button>
-      {feedVideos.map((item, index) => (
-        <div
-          key={item.video.id}
-          ref={(el) => registerVideoElement(item.video.id, el)}
-          data-video-id={item.video.id}
+        {/* Exit Button */}
+        <button
+          onClick={() => window.location.href = '/'}
+          className="fixed top-4 right-4 z-50 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-colors backdrop-blur-sm"
+          data-testid="button-exit-feed"
+          aria-label="Exit to Leaderboard"
         >
-          <FeedVideoItem
-            item={item}
-            currentIndex={currentIndex}
-            index={index}
-            isActive={index === currentIndex}
-            isMuted={isMuted}
-            onToggleMute={toggleMute}
-            onNavigateNext={navigateToNext}
-          />
-        </div>
-      ))}
+          <X className="h-6 w-6" />
+        </button>
+        {feedVideos.map((item, index) => (
+          <div
+            key={item.video.id}
+            ref={(el) => registerVideoElement(item.video.id, el)}
+            data-video-id={item.video.id}
+          >
+            <FeedVideoItem
+              item={item}
+              currentIndex={currentIndex}
+              index={index}
+              isActive={index === currentIndex}
+              isMuted={isMuted}
+              onToggleMute={toggleMute}
+              onNavigateNext={navigateToNext}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -284,9 +284,11 @@ export async function getUserCreditTransactions(userId: string, limit = 10) {
 // Leaderboard operations
 export async function getTodayLeaderboard(limit = 10) {
   const today = new Date().toISOString().split('T')[0];
-  const todayStart = new Date(today);
-  todayStart.setHours(0, 0, 0, 0);
   
+  // Show ALL active videos, sorted by:
+  // 1. Today's views (highest first)
+  // 2. Boost amount (credits spent)
+  // 3. Newest first (so new uploads appear even with 0 views)
   const result = await db
     .select({
       id: videos.id,
@@ -295,8 +297,11 @@ export async function getTodayLeaderboard(limit = 10) {
       productUrl: videos.productUrl,
       videoPath: videos.videoPath,
       thumbnailPath: videos.thumbnailPath,
+      hlsUrl: videos.hls_url,
+      provider: videos.provider,
+      status: videos.status,
       creatorId: videos.creatorId,
-      creatorName: sql<string>`COALESCE(CONCAT(${users.firstName}, ' ', ${users.lastName}), ${users.email}, 'Anonymous')`,
+      creatorName: sql<string>`COALESCE(NULLIF(CONCAT(${users.firstName}, ' ', ${users.lastName}), ' '), ${users.email}, 'Anonymous')`,
       creatorImageUrl: users.profileImageUrl,
       views: sql<number>`COALESCE(${dailyStats.views}, 0)`,
       totalViews: videos.totalViews,
@@ -313,20 +318,11 @@ export async function getTodayLeaderboard(limit = 10) {
         eq(dailyStats.date, today)
       )
     )
-    .where(
-      and(
-        eq(videos.isActive, true),
-        or(
-          // Either has views today
-          sql`${dailyStats.views} > 0`,
-          // Or was created today
-          gte(videos.createdAt, todayStart)
-        )
-      )
-    )
+    .where(eq(videos.isActive, true))
     .orderBy(
-      desc(sql`COALESCE(${dailyStats.views}, 0)`),
-      desc(videos.createdAt) // Secondary sort by creation time
+      desc(sql`COALESCE(${dailyStats.creditsSpent}, 0)`), // Boosted videos first
+      desc(sql`COALESCE(${dailyStats.views}, 0)`),         // Then by views
+      desc(videos.createdAt)                                // Newest as tiebreaker
     )
     .limit(limit);
 
@@ -384,17 +380,7 @@ export async function getEnhancedLeaderboard(limit = 10, sortBy: 'views' | 'favo
     )
     .leftJoin(videoFavorites, eq(videos.id, videoFavorites.videoId))
     .leftJoin(demoLinkClicks, eq(videos.id, demoLinkClicks.videoId))
-    .where(
-      and(
-        eq(videos.isActive, true),
-        or(
-          // Either has views today
-          sql`${dailyStats.views} > 0`,
-          // Or was created today
-          gte(videos.createdAt, today)
-        )
-      )
-    );
+    .where(eq(videos.isActive, true));
 
   // Add tag filtering if specified
   if (tagFilter) {
