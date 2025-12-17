@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { db, videos, users, videoTags, dailyStats, videoFavorites, videoViews, videoViewingSessions, demoLinkClicks, creditTransactions } from './_lib/db';
-import { eq, like, or } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 
 // DELETE endpoint to remove all demo/placeholder data
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -22,41 +22,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!expectedKey || authHeader !== `Bearer ${expectedKey}`) {
     return res.status(401).json({ error: 'Unauthorized. Set ADMIN_SECRET_KEY env var and pass as Bearer token.' });
   }
+
+  if (!process.env.DATABASE_URL) {
+    return res.status(500).json({ error: 'DATABASE_URL not set' });
+  }
   
+  const client = postgres(process.env.DATABASE_URL, {
+    max: 1,
+    idle_timeout: 20,
+    ssl: 'require',
+    prepare: false,
+  });
+
   try {
     const results: string[] = [];
-    const errors: string[] = [];
     
-    const safeDelete = async (fn: () => Promise<any>, description: string) => {
-      try {
-        await fn();
-        results.push(description);
-      } catch (e: any) {
-        errors.push(`${description}: ${e.message}`);
-      }
-    };
-
-    // Delete in order to respect foreign keys
-    await safeDelete(() => db.delete(videoTags).where(like(videoTags.videoId, 'demo-video-%')), 'video_tags');
-    await safeDelete(() => db.delete(dailyStats).where(like(dailyStats.videoId, 'demo-video-%')), 'daily_stats');
-    await safeDelete(() => db.delete(videoFavorites).where(like(videoFavorites.videoId, 'demo-video-%')), 'video_favorites');
-    await safeDelete(() => db.delete(videoViews).where(like(videoViews.videoId, 'demo-video-%')), 'video_views');
-    await safeDelete(() => db.delete(videoViewingSessions).where(like(videoViewingSessions.videoId, 'demo-video-%')), 'video_viewing_sessions');
-    await safeDelete(() => db.delete(demoLinkClicks).where(like(demoLinkClicks.videoId, 'demo-video-%')), 'demo_link_clicks');
-    await safeDelete(() => db.delete(creditTransactions).where(eq(creditTransactions.userId, 'demo-user-1')), 'credit_transactions');
-    await safeDelete(() => db.delete(videos).where(or(like(videos.id, 'demo-video-%'), eq(videos.creatorId, 'demo-user-1'))), 'videos');
-    await safeDelete(() => db.delete(users).where(eq(users.id, 'demo-user-1')), 'demo user');
+    // Delete in order to respect foreign keys using raw SQL
+    await client`DELETE FROM video_tags WHERE video_id LIKE 'demo-video-%'`;
+    results.push('video_tags');
+    
+    await client`DELETE FROM daily_stats WHERE video_id LIKE 'demo-video-%'`;
+    results.push('daily_stats');
+    
+    await client`DELETE FROM video_favorites WHERE video_id LIKE 'demo-video-%'`;
+    results.push('video_favorites');
+    
+    await client`DELETE FROM video_views WHERE video_id LIKE 'demo-video-%'`;
+    results.push('video_views');
+    
+    await client`DELETE FROM video_viewing_sessions WHERE video_id LIKE 'demo-video-%'`;
+    results.push('video_viewing_sessions');
+    
+    await client`DELETE FROM demo_link_clicks WHERE video_id LIKE 'demo-video-%'`;
+    results.push('demo_link_clicks');
+    
+    await client`DELETE FROM credit_transactions WHERE user_id = 'demo-user-1'`;
+    results.push('credit_transactions');
+    
+    await client`DELETE FROM videos WHERE id LIKE 'demo-video-%' OR creator_id = 'demo-user-1'`;
+    results.push('videos');
+    
+    await client`DELETE FROM users WHERE id = 'demo-user-1'`;
+    results.push('demo user');
+    
+    await client.end();
     
     return res.status(200).json({
       success: true,
       message: 'Demo data cleanup completed',
-      deleted: results,
-      errors: errors.length > 0 ? errors : undefined
+      deleted: results
     });
   } catch (e: any) {
+    await client.end();
     return res.status(500).json({
       error: e.message,
-      stack: e.stack
+      detail: e.detail
     });
   }
 }
