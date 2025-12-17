@@ -13,6 +13,7 @@ import Settings from "@/pages/settings";
 import Feed from "@/pages/feed";
 import Watch from "@/pages/watch";
 import Profile from "@/pages/profile";
+import VideoPage from "@/pages/video";
 import PaymentComplete from "@/pages/payment-complete";
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -106,6 +107,7 @@ function Router() {
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/settings" component={Settings} />
         <Route path="/watch/:id" component={Watch} />
+        <Route path="/video/:id" component={VideoPage} />
         <Route path="/profile/:userId" component={Profile} />
         <Route component={NotFound} />
       </Switch>

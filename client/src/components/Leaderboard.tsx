@@ -166,21 +166,27 @@ export default function Leaderboard({ items, sortBy = 'views', onSortChange }: L
                     {item.position}
                     {item.position === 1 && <Crown className="ml-1 h-3 w-3" />}
                   </Badge>
-                  <div
-                    className="flex items-center space-x-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => navigate(`/profile/${item.creator.id}`)}
-                  >
-                    <Avatar className="h-8 w-8">
+                  <div className="flex items-center space-x-3 flex-1">
+                    <Avatar 
+                      className="h-8 w-8 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => navigate(`/profile/${item.creator.id}`)}
+                    >
                       <AvatarImage src={item.creator?.profileImageUrl || undefined} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                         {getCreatorInitial(item.creator)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <p className="font-medium text-foreground text-sm hover:text-primary">
+                      <p 
+                        className="font-medium text-foreground text-sm hover:text-primary cursor-pointer"
+                        onClick={() => navigate(`/profile/${item.creator.id}`)}
+                      >
                         {getCreatorName(item.creator)}
                       </p>
-                      <p className="text-xs text-muted-foreground line-clamp-1">
+                      <p 
+                        className="text-xs text-muted-foreground line-clamp-1 hover:text-primary cursor-pointer"
+                        onClick={() => navigate(`/video/${item.video.id}`)}
+                      >
                         {item.video.title}
                       </p>
                       {item.video.tags && item.video.tags.length > 0 && (

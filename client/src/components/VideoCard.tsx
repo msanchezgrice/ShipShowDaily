@@ -120,7 +120,15 @@ export default function VideoCard({ video, position, onPlay, onTagClick }: Video
       </div>
       
       <CardContent className="p-4">
-        <h3 className="font-semibold text-foreground mb-2 line-clamp-2">{video.title}</h3>
+        <h3 
+          className="font-semibold text-foreground mb-2 line-clamp-2 hover:text-primary cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/video/${video.id}`);
+          }}
+        >
+          {video.title}
+        </h3>
         <p className="text-muted-foreground text-sm mb-3 line-clamp-2">{video.description}</p>
         
         {/* Tags */}

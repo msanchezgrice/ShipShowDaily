@@ -141,6 +141,14 @@ export const demoLinkClicks = pgTable("demo_link_clicks", {
   clickedAt: timestamp("clicked_at").defaultNow(),
 });
 
+export const videoShares = pgTable("video_shares", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }), // nullable for anonymous shares
+  videoId: varchar("video_id").notNull().references(() => videos.id, { onDelete: "cascade" }),
+  platform: varchar("platform", { length: 50 }).notNull(), // 'twitter', 'linkedin', 'facebook', 'copy', 'other'
+  sharedAt: timestamp("shared_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   videos: many(videos),
@@ -149,6 +157,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   videoViewingSessions: many(videoViewingSessions),
   videoFavorites: many(videoFavorites),
   demoLinkClicks: many(demoLinkClicks),
+  videoShares: many(videoShares),
 }));
 
 export const videosRelations = relations(videos, ({ one, many }) => ({
@@ -163,6 +172,7 @@ export const videosRelations = relations(videos, ({ one, many }) => ({
   videoTags: many(videoTags),
   videoFavorites: many(videoFavorites),
   demoLinkClicks: many(demoLinkClicks),
+  videoShares: many(videoShares),
 }));
 
 export const videoViewsRelations = relations(videoViews, ({ one }) => ({
@@ -238,6 +248,17 @@ export const demoLinkClicksRelations = relations(demoLinkClicks, ({ one }) => ({
   }),
   video: one(videos, {
     fields: [demoLinkClicks.videoId],
+    references: [videos.id],
+  }),
+}));
+
+export const videoSharesRelations = relations(videoShares, ({ one }) => ({
+  user: one(users, {
+    fields: [videoShares.userId],
+    references: [users.id],
+  }),
+  video: one(videos, {
+    fields: [videoShares.videoId],
     references: [videos.id],
   }),
 }));
