@@ -12,7 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Settings as SettingsIcon, User, CreditCard, LogOut, Key } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import CreditPurchaseDialog from "@/components/CreditPurchaseDialog";
 import { SignedIn, SignedOut, SignInButton, useClerk } from "@clerk/clerk-react";
+import { useState } from "react";
 
 const profileSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(50),
@@ -36,6 +38,7 @@ export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { signOut } = useClerk();
+  const [showCreditDialog, setShowCreditDialog] = useState(false);
 
   // Fetch current user data
   const { data: user } = useQuery<any>({
@@ -339,7 +342,7 @@ export default function Settings() {
                 <Button variant="outline" data-testid="button-view-transactions">
                   View Transaction History
                 </Button>
-                <Button data-testid="button-buy-credits">
+                <Button data-testid="button-buy-credits" onClick={() => setShowCreditDialog(true)}>
                   Buy More Credits
                 </Button>
               </div>
@@ -376,6 +379,11 @@ export default function Settings() {
         </div>
         </SignedIn>
       </div>
+
+      <CreditPurchaseDialog 
+        isOpen={showCreditDialog} 
+        onClose={() => setShowCreditDialog(false)} 
+      />
     </div>
   );
 }

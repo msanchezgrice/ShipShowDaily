@@ -42,10 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         v.created_at as "createdAt", v.status, v.provider, v.hls_url,
         COALESCE((SELECT COUNT(*) FROM video_favorites WHERE video_id = v.id), 0) as "favorites",
         COALESCE((SELECT COUNT(*) FROM demo_link_clicks WHERE video_id = v.id), 0) as "demoClicks",
-        COALESCE((SELECT COUNT(*) FROM video_shares WHERE video_id = v.id), 0) as "shares",
-        COALESCE((
-          SELECT SUM(vv.watch_duration) FROM video_viewing_sessions vv WHERE vv.video_id = v.id
-        ), 0) as "totalWatchTime"
+        COALESCE((SELECT COUNT(*) FROM video_shares WHERE video_id = v.id), 0) as "shares"
       FROM videos v
       WHERE v.creator_id = ${userId} AND v.is_active = true
       ORDER BY v.created_at DESC
@@ -89,7 +86,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       favorites: parseInt(v.favorites) || 0,
       demoClicks: parseInt(v.demoClicks) || 0,
       shares: parseInt(v.shares) || 0,
-      totalWatchTime: parseInt(v.totalWatchTime) || 0,
       tags: tagsByVideo[v.id] || [],
     }));
 

@@ -62,9 +62,11 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
 
     const setupVideo = () => {
       // Check if this is a Cloudflare Stream video
-      const isStreamVideo = video.provider === 'stream' && video.hls_url;
+      // Use hls_url if available, otherwise check if videoPath is an HLS manifest
+      const hlsUrl = video.hls_url || (video.videoPath?.includes('.m3u8') ? video.videoPath : null);
+      const isStreamVideo = (video.provider === 'stream' || video.videoPath?.includes('cloudflarestream.com')) && hlsUrl;
       
-      if (isStreamVideo && video.hls_url) {
+      if (isStreamVideo && hlsUrl) {
         // Use HLS.js for Stream videos
         if (Hls.isSupported()) {
           const hls = new Hls({
@@ -81,7 +83,7 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
             debug: false,
           });
 
-          hls.loadSource(video.hls_url);
+          hls.loadSource(hlsUrl);
           hls.attachMedia(videoElement);
           
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -126,7 +128,7 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
           hlsRef.current = hls;
         } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
           // Native HLS support (Safari/iOS)
-          videoElement.src = video.hls_url;
+          videoElement.src = hlsUrl;
           setIsLoading(false);
         } else {
           console.error('HLS not supported');
