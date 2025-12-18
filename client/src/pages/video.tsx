@@ -84,24 +84,27 @@ export default function VideoPage() {
   // Share tracking mutation
   const shareMutation = useMutation({
     mutationFn: async (platform: string) => {
-      return apiRequest(`/api/videos/${videoId}/share`, {
-        method: "POST",
-        body: JSON.stringify({ platform }),
-      });
+      return apiRequest("POST", `/api/videos/${videoId}/share`, { platform });
     },
   });
 
   // Favorite mutation
   const favoriteMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/videos/${videoId}/favorite`, {
-        method: "POST",
-      });
+      const res = await apiRequest("POST", `/api/videos/${videoId}/favorite`);
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       refetch();
       toast({
-        title: videoData?.isFavorited ? "Removed from favorites" : "Added to favorites",
+        title: data?.favorited ? "Added to favorites" : "Removed from favorites",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update favorite",
+        variant: "destructive",
       });
     },
   });
