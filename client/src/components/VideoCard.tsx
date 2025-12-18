@@ -45,10 +45,10 @@ export default function VideoCard({ video, position, onPlay, onTagClick }: Video
 
   const favoriteMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/videos/${video.id}/favorite`, { method: "POST" });
+      const response = await apiRequest("POST", `/api/videos/${video.id}/favorite`);
+      return response.json();
     },
-    onSuccess: async (response) => {
-      const data = await response.json();
+    onSuccess: (data: any) => {
       setIsFavorited(data.favorited);
       toast({
         title: data.favorited ? "Added to favorites" : "Removed from favorites",

@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError, redirectToSignInClient } from "@/lib/authUtils";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -177,10 +178,9 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
   // Start viewing session
   const startViewingMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/videos/${video.id}/start`, {
-        method: "POST",
-      });
-      return response.sessionId;
+      const response = await apiRequest("POST", `/api/videos/${video.id}/start`);
+      const data = await response.json();
+      return data.sessionId;
     },
     onSuccess: (newSessionId) => {
       setSessionId(newSessionId);
@@ -202,16 +202,14 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
   const completeViewingMutation = useMutation({
     mutationFn: async () => {
       if (!sessionId) throw new Error("No session to complete");
-      return apiRequest(`/api/videos/${video.id}/complete`, {
-        method: "POST",
-        body: JSON.stringify({ sessionId }),
-      });
+      const response = await apiRequest("POST", `/api/videos/${video.id}/complete`, { sessionId });
+      return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       if (data.creditAwarded && !hasEarnedCredit) {
         setHasEarnedCredit(true);
         toast({
-          title: "Credit Earned! 🎉",
+          title: "Credit Earned!",
           description: "You earned 1 credit for watching this demo.",
         });
         queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -227,9 +225,8 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
   // Favorite video
   const favoriteMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/videos/${video.id}/favorite`, {
-        method: "POST",
-      });
+      const response = await apiRequest("POST", `/api/videos/${video.id}/favorite`);
+      return response.json();
     },
     onSuccess: (data: any) => {
       const newFavorited = data.favorited;
@@ -262,9 +259,7 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
   // Track demo link click
   const trackDemoClickMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/videos/${video.id}/demo-click`, {
-        method: "POST",
-      });
+      return apiRequest("POST", `/api/videos/${video.id}/demo-click`);
     },
   });
 
@@ -368,7 +363,10 @@ export default function VideoPlayerEnhanced({ video, onClose }: VideoPlayerProps
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black">
+      <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black" aria-describedby={undefined}>
+        <VisuallyHidden>
+          <DialogTitle>{video?.title || 'Video Player'}</DialogTitle>
+        </VisuallyHidden>
         <div className="relative">
           {/* Close button */}
           <Button
