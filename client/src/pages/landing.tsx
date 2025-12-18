@@ -1,11 +1,23 @@
 import { SignInButton } from "@clerk/clerk-react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Rocket, Play, Upload, Eye, Trophy, Users, Coins } from "lucide-react";
 
 export default function Landing() {
   const [, navigate] = useLocation();
+  
+  const { data: stats } = useQuery<{
+    totalVideos: string;
+    totalUsers: string;
+    totalViews: string;
+    totalCredits: string;
+  }>({
+    queryKey: ['/api/stats/public'],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
@@ -95,19 +107,19 @@ export default function Landing() {
         {/* Stats Preview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
           <div className="text-center">
-            <div className="text-3xl font-bold text-foreground mb-2">12K+</div>
-            <div className="text-sm text-muted-foreground">Daily Views</div>
+            <div className="text-3xl font-bold text-foreground mb-2">{stats?.totalViews || '0+'}</div>
+            <div className="text-sm text-muted-foreground">Total Views</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-foreground mb-2">500+</div>
+            <div className="text-3xl font-bold text-foreground mb-2">{stats?.totalVideos || '0+'}</div>
             <div className="text-sm text-muted-foreground">Demo Videos</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-foreground mb-2">2K+</div>
+            <div className="text-3xl font-bold text-foreground mb-2">{stats?.totalUsers || '0+'}</div>
             <div className="text-sm text-muted-foreground">Active Users</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-foreground mb-2">50K+</div>
+            <div className="text-3xl font-bold text-foreground mb-2">{stats?.totalCredits || '0+'}</div>
             <div className="text-sm text-muted-foreground">Credits Earned</div>
           </div>
         </div>
